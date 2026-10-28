@@ -1,6 +1,6 @@
-[![DOI](https://zenodo.org/badge/1437500728.svg)](https://doi.org/10.5281/zenodo.23741623)
+# MMA-DUAL
 
-# mma-dual
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23741623.svg)](https://doi.org/10.5281/zenodo.23741623)
 
 MMA and GCMMA subproblems solved by the **dual method**, as drop-in replacements for
 `mmasub` and `gcmmasub` of [GCMMA-MMA-Python](https://github.com/arjendeetman/GCMMA-MMA-Python)
@@ -190,11 +190,52 @@ python examples/toy_problem.py
 
 ## Citing
 
-If you use this code, please cite Svanberg (1987, 2002) for the methods and
-GCMMA-MMA-Python for the implementation of the subproblem construction:
+This repository is archived on Zenodo (DOI [10.5281/zenodo.23741623](https://doi.org/10.5281/zenodo.23741623)) and has a `CITATION.cff` file (use the "Cite this repository" button on GitHub).
+Please cite the version used, together with GCMMA-MMA-Python, from which the construction of
+the subproblem is taken, and the papers by Svanberg that define the methods:
 
-- K. Svanberg, The method of moving asymptotes - a new method for structural optimization,
-  Int. J. Numer. Meth. Engng 24 (1987) 359-373.
-- K. Svanberg, A class of globally convergent optimization methods based on conservative
-  convex separable approximations, SIAM J. Optim. 12 (2002) 555-573.
-- A. Deetman, GCMMA-MMA-Python, https://github.com/arjendeetman/GCMMA-MMA-Python
+```bibtex
+@software{silva2026mmadual,
+  author  = {Silva, Olavo M.},
+  title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
+  version = {0.1.0},
+  year    = {2026},
+  doi     = {10.5281/zenodo.23741623},
+  url     = {https://github.com/olavosilva/MMA-DUAL},
+  note    = {GPL-3.0; derived from GCMMA-MMA-Python}
+}
+
+@software{deetman2025gcmmammapython,
+  author  = {Deetman, Arjen},
+  title   = {{GCMMA-MMA-Python}: {Python} implementation of the Method of Moving Asymptotes},
+  version = {0.3.1},
+  year    = {2025},
+  doi     = {10.5281/zenodo.15459165},
+  url     = {https://github.com/arjendeetman/GCMMA-MMA-Python}
+}
+
+@article{svanberg1987mma,
+  author  = {Svanberg, Krister},
+  title   = {The method of moving asymptotes - a new method for structural optimization},
+  journal = {International Journal for Numerical Methods in Engineering},
+  volume  = {24},
+  number  = {2},
+  pages   = {359--373},
+  year    = {1987},
+  doi     = {10.1002/nme.1620240207}
+}
+
+@article{svanberg2002gcmma,
+  author  = {Svanberg, Krister},
+  title   = {A class of globally convergent optimization methods based on conservative convex separable approximations},
+  journal = {SIAM Journal on Optimization},
+  volume  = {12},
+  number  = {2},
+  pages   = {555--573},
+  year    = {2002},
+  doi     = {10.1137/S1052623499362822}
+}
+```
+
+The DOI of GCMMA-MMA-Python above is the one of version 0.3.1; the concept DOI that always
+resolves to the latest version is 10.5281/zenodo.13197565.

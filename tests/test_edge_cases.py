@@ -1,7 +1,7 @@
 """
 Edge cases of mma_dual.mmasub, checked against mmapy.mmasub on the same subproblem:
 strongly violated constraints (lam reaches c, y > 0), d > 0, objective gradients scaled from
-1e-3 to 1e3, the a != 0 exception and the non-convergence warning (tiny max_newton).
+1e-3 to 1e3, the full KKT residuals of the subproblem, the a != 0 exception and the non-convergence warning (tiny max_newton).
 
 Run:  python tests/test_edge_cases.py      or      pytest tests/
 Requires mmapy (pip install mmapy).
@@ -112,6 +112,40 @@ def test_extreme_scales():
     for expo in range(-3, 4):
         for n, m in [(200, 4), (3000, 12)]:
             compara(subproblema(n, m, escala=10.0**expo))
+
+
+def kkt_subproblema(o, args, low, upp):
+    "full KKT residuals of the subproblem at the returned point, as in mmapy.subsolv with eps = 0"
+    m, n, _, xval, xmin, xmax = args[:6]
+    df0dx, fval, dfdx = args[9], args[10], args[11]
+    a0, a, c, d = args[14:18]
+    x, y, z, lam, xsi, eta, mu, zet, s = o[:9]
+    alfa = np.maximum(np.maximum(low + 0.1*(xval - low), xval - MOVE*(xmax - xmin)), xmin)
+    beta = np.minimum(np.minimum(upp - 0.1*(upp - xval), xval + MOVE*(xmax - xmin)), xmax)
+    p0, q0, P, Q, b = coeficientes(m, n, xval, xmin, xmax, low, upp, df0dx, dfdx, fval)
+    ux, xl = upp - x, x - low
+    pl, ql = p0 + P.T @ lam, q0 + Q.T @ lam
+    g = P @ (1/ux) + Q @ (1/xl)
+    estac = max(np.abs(pl/ux**2 - ql/xl**2 - xsi + eta).max(),       # x
+                np.abs(c + d*y - mu - lam).max(),                     # y
+                abs(float((a0 - zet - a.T @ lam).item())))            # z
+    viab = np.abs(g - a*z - y + s - b).max()
+    compl = max(np.abs(xsi*(x - alfa)).max(), np.abs(eta*(beta - x)).max(), np.abs(mu*y).max(),
+                np.abs(zet*z).max(), np.abs(lam*s).max())
+    return estac, viab, compl, max(1.0, np.abs(b).max())
+
+
+def test_kkt_residuals():
+    "stationarity, feasibility (with y, z, s) and complementarity of the subproblem at the returned point"
+    for kw in [dict(), dict(escala=1e-3), dict(escala=1e3), dict(violada=True), dict(violada=True, dval=1.0), dict(dval=1.0, escala=1e-3)]:
+        for n, m in [(200, 4), (3000, 12)]:
+            args = subproblema(n, m, **kw)
+            o = mma_du(*args, move=MOVE)
+            estac, viab, compl, escala_b = kkt_subproblema(o, args, o[9], o[10])
+            tol = 1e-10*escala_b
+            assert estac <= 1e-12*max(1.0, np.abs(o[3]).max()), f"stationarity residual {estac:.1e}"
+            assert viab <= tol, f"feasibility residual {viab:.1e} > {tol:.1e}"
+            assert compl <= args[16].max()*tol, f"complementarity residual {compl:.1e}"
 
 
 def test_a_nonzero_raises():

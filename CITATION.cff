@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below, together with GCMMA-MMA-Python (Deetman) and the papers by Svanberg (1987, 2002)."
+type: software
+title: "MMA-DUAL: MMA and GCMMA subproblems solved by the dual method"
+version: 0.1.1
+date-released: 2026-10-28
+doi: 10.5281/zenodo.23741623
+url: "https://github.com/olavosilva/MMA-DUAL"
+repository-code: "https://github.com/olavosilva/MMA-DUAL"
+license: GPL-3.0-or-later
+authors:
+  - family-names: Silva
+    given-names: Olavo M.
+    affiliation: "Laboratório de Vibrações e Acústica / Multidisciplinary Optimization Group (LVA-MOPT), Universidade Federal de Santa Catarina"
+keywords:
+  - method of moving asymptotes
+  - MMA
+  - GCMMA
+  - dual method
+  - topology optimization
+  - structural optimization
+abstract: "Drop-in replacements for mmasub and gcmmasub of GCMMA-MMA-Python in which the separable convex subproblem of the MMA/GCMMA is solved by its dual (Svanberg, 1987): a projected Newton method with analytical Hessian on the m Lagrange multipliers, for problems with few constraints (m much smaller than n)."
+references:
+  - type: software
+    title: "GCMMA-MMA-Python: Python implementation of the Method of Moving Asymptotes"
+    authors:
+      - family-names: Deetman
+        given-names: Arjen
+    version: 0.3.1
+    year: 2025
+    doi: 10.5281/zenodo.15459165
+    url: "https://github.com/arjendeetman/GCMMA-MMA-Python"
+  - type: article
+    title: "The method of moving asymptotes - a new method for structural optimization"
+    authors:
+      - family-names: Svanberg
+        given-names: Krister
+    journal: "International Journal for Numerical Methods in Engineering"
+    volume: 24
+    issue: 2
+    start: 359
+    end: 373
+    year: 1987
+    doi: 10.1002/nme.1620240207
+  - type: article
+    title: "A class of globally convergent optimization methods based on conservative convex separable approximations"
+    authors:
+      - family-names: Svanberg
+        given-names: Krister
+    journal: "SIAM Journal on Optimization"
+    volume: 12
+    issue: 2
+    start: 555
+    end: 573
+    year: 2002
+    doi: 10.1137/S1052623499362822

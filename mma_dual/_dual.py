@@ -108,7 +108,7 @@ def mmasub(m, n, iter, xval, xmin, xmax, xold1, xold2, f0val, df0dx, fval, dfdx,
     # --- multiplicadores dos limites e folgas (para compatibilidade de retorno)
     pl, ql = p0 + P.T @ lam, q0 + Q.T @ lam
     dpsidx = pl/(upp - x)**2 - ql/(x - low)**2
-    xsi, eta = np.maximum(-dpsidx, 0), np.maximum(dpsidx, 0)
+    xsi, eta = np.maximum(dpsidx, 0), np.maximum(-dpsidx, 0)                   # rex = dpsidx - xsi + eta = 0 (mmapy)
     g = P @ (eeen/(upp - x)) + Q @ (eeen/(x - low)) - a*z - b                 # restrições aproximadas em x
     y = np.where(d > 0, y, np.maximum(g, 0))                                   # d = 0: y absorve a violação (como no mmapy)
     mu = np.maximum(c + d*y - lam, 0)
@@ -143,7 +143,7 @@ def gcmmasub(m, n, iter, epsimin, xval, xmin, xmax, low, upp, raa0, raa, f0val, 
     x, y, z, lam = subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P, Q, a0, a, b, c, d, tol_dual, max_newton)
     pl, ql = p0 + P.T @ lam, q0 + Q.T @ lam
     dpsidx = pl/(upp - x)**2 - ql/(x - low)**2
-    xsi, eta = np.maximum(-dpsidx, 0), np.maximum(dpsidx, 0)
+    xsi, eta = np.maximum(dpsidx, 0), np.maximum(-dpsidx, 0)                   # rex = dpsidx - xsi + eta = 0 (mmapy)
     g = P @ (eeen/(upp - x)) + Q @ (eeen/(x - low)) - a*z - b
     y = np.where(d > 0, y, np.maximum(g, 0))
     mu = np.maximum(c + d*y - lam, 0)

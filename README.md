@@ -131,16 +131,26 @@ multipliers at a bound of the box whose gradient points outwards, the Newton dir
 computed in the free multipliers, replaced by the projected gradient when it is not an ascent
 direction, and the step is halved, with projection onto the box, until the Armijo condition
 $W(\lambda^+) - W(\lambda) \ge 10^{-4}\, \nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$ holds
-(up to a rounding tolerance of $10^{-14}|W|$). The iteration stops when the projected gradient
-is smaller than `tol_dual` relative to $\max(1, \|b\|_\infty)$; since stationarity in $x$ holds
-by construction, the projected dual gradient is exactly the primal feasibility and
-complementarity residual of the subproblem, so no separate KKT check is needed. If
-`max_newton` steps are reached, or the line search cannot make progress, before this tolerance
+(up to a rounding allowance of $10^{-14}|W|$, proportional to $|W|$ because $W$ is a sum of $n$
+positive terms whose rounding error scales with $|W|$; the allowance is what lets the last
+Newton steps be accepted when their predicted gain is below rounding, and in tests it never
+admitted an actual decrease of $W$). The iteration stops when the projected gradient is smaller
+than `tol_dual` relative to $\max(1, \|b\|_\infty)$. Stationarity in $x$, $y$ and $z$ holds by
+construction of $x(\lambda)$, $y(\lambda)$ and $z$, so the projected dual gradient is the
+feasibility and complementarity residual of the subproblem *with* its artificial variables:
+$|g_i(x) - y_i - b_i| \le$ `tol_dual` $\max(1, \|b\|_\infty)$ for the free multipliers, with
+$g_i(x) - y_i < b_i$ allowed only at $\lambda_i = 0$. This is feasibility of the subproblem, not of
+the approximate constraints $g_i(x) \le b_i$ themselves: when $\lambda_i = c_i$ the latter are
+violated at $x$ and $y_i > 0$ carries the violation, exactly as in `mmapy`. The complementarity
+residuals $\lambda_i s_i$ and $\mu_i y_i$ are the gradient residual multiplied by $\lambda_i$ or
+$\mu_i \le c_i$, so with $c = 10^3$ they can reach $10^3$ times the gradient tolerance;
+`tests/test_edge_cases.py` checks all the KKT residuals of the subproblem, including those of
+the multipliers $\xi, \eta, \mu, \zeta, s$ recovered for compatibility with `mmapy`. If
+`max_newton` steps are reached, or the line search cannot make progress, before the tolerance
 is met, a `RuntimeWarning` reports the residual actually reached. The dual function is piecewise
 smooth, so the Newton direction is exact within each piece and the line search handles the
 transitions; in practice a few steps suffice. Once $\lambda^\star$ is found, $x(\lambda^\star)$ is
-the solution of the subproblem, and the remaining multipliers returned for compatibility with
-`mmapy` ($\xi, \eta, \mu, \zeta, s$) are recovered from the KKT conditions.
+the solution of the subproblem.
 
 ### What is different from `mmapy`
 
@@ -163,7 +173,10 @@ $c = 10^3$, $d = 0$, `move = 0.2`. The gain depends on how hard the subproblem i
 interior-point method, more than on $n$ and $m$: on well-scaled subproblems it is a factor of
 2.5 to 18, and it grows with $n$ and shrinks with $m$ (the $O(nm^2)$ Hessian); on badly scaled
 subproblems (objective gradient $\sim 10^{-3}$, second table), where `mmapy` needs hundreds of
-Newton steps per barrier level, it is two to three orders of magnitude.
+Newton steps per barrier level, it is two to three orders of magnitude. In that regime `mmapy`
+also returns less accurate subproblem solutions (it stops at its iteration limit: feasibility
+residuals of $10^{-4}$ to $10^{-3}$ in the second table, against $10^{-12}$ to $10^{-9}$ for the
+dual, which always reaches `tol_dual`).
 
 | $n$ | $m$ | `mmapy` [s] | `mma_dual` [s] | ratio |
 |---:|---:|---:|---:|---:|
@@ -188,9 +201,7 @@ Newton steps per barrier level, it is two to three orders of magnitude.
 | 100 000 | 4 | 34.2 | 0.074 | 460 |
 
 In an optimization run the subproblem is only part of the cost, so the gain in total time is
-smaller; in the duct-network problem that motivated this package ($m = 4$, multipliers up to
-$c$ and many variables at the move limits) the subproblem step went from 0.33 s to 0.015 s per
-iteration.
+smaller than the ratios above.
 
 ## Usage
 
@@ -226,8 +237,9 @@ reaches `c` and the returned `y` carries the violation, as in `mmapy`.
 `tests/test_against_mmapy.py` compares the two solvers on random MMA and GCMMA subproblems
 (objective of the approximation plus the penalty of the artificial variables, feasibility,
 `f0app`/`fapp`); `tests/test_edge_cases.py` covers strongly violated constraints (multipliers
-at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$, the
-`a != 0` exception and the non-convergence warning; `examples/toy_problem.py` runs the
+at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$, the full KKT
+residuals of the subproblem at the returned point, the `a != 0` exception and the
+non-convergence warning; `examples/toy_problem.py` runs the
 five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
 iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above.
 

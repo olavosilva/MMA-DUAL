@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mma-dual"
+version = "0.1.0"
+description = "MMA and GCMMA subproblems solved by the dual method (drop-in replacement for mmapy's mmasub/gcmmasub)"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "Olavo M. Silva", email = "olavo@lva.ufsc.br"}]
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.20"]
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+test = ["mmapy>=0.3", "scipy"]
+
+[project.urls]
+Homepage = "https://github.com/arjendeetman/GCMMA-MMA-Python"
+
+[tool.setuptools]
+packages = ["mma_dual"]

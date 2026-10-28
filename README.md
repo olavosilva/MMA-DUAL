@@ -167,7 +167,7 @@ tests).
 
 ### Benchmark
 
-Median wall time of five random MMA subproblems per $(n, m)$ (`benchmarks/bench_n_m.py`,
+Median wall time of five random MMA subproblems per $(n, m)$ (`tests/bench_n_m.py`,
 one core). Gradients $\sim N(0,1)$, constraint values $\sim U(-1,1)$,
 $c = 10^3$, $d = 0$, `move = 0.2`. The gain depends on how hard the subproblem is for the
 interior-point method, more than on $n$ and $m$: on well-scaled subproblems it is a factor of
@@ -241,7 +241,7 @@ at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$
 residuals of the subproblem at the returned point, the `a != 0` exception and the
 non-convergence warning; `examples/toy_problem.py` runs the
 five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
-iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above.
+iteration histories; `tests/bench_n_m.py` reproduces the tables above.
 
 ```
 pip install -e .          # numpy only
@@ -249,7 +249,7 @@ pip install mmapy         # needed for the tests, the example, the benchmark and
 python tests/test_against_mmapy.py
 python tests/test_edge_cases.py
 python examples/toy_problem.py
-python benchmarks/bench_n_m.py
+python tests/bench_n_m.py
 ```
 
 ## Citing

@@ -31,14 +31,21 @@ Closed-form minimizers for fixed lam:
     pj = p0j + sum_i lam_i Pij ,  qj = q0j + sum_i lam_i Qij
     xj = (sqrt(pj) Lj + sqrt(qj) Uj)/(sqrt(pj) + sqrt(qj)), clipped to [alfa_j, beta_j]
     yi = max(0, (lam_i - ci)/di)  if di > 0 ;  lam_i <= ci (and yi = 0) if di = 0
-    z  = 0 whenever a0 > sum_i ai lam_i (the usual case a = 0)
+    z  = 0 (with a = 0 and a0 > 0, the standard choice: see the restriction below)
 The dual gradient is the residual of the approximate constraints and the dual
 Hessian is assembled analytically from the x_j strictly inside [alfa_j, beta_j].
+
+Restriction: only a = 0 is supported (a0 > 0 arbitrary). With a != 0 (minimax
+problems) the dual domain is the box intersected with the half-space
+sum_i ai lam_i <= a0 and z is recovered on its boundary; this case is not
+implemented and raises NotImplementedError. Use mmapy for such problems.
 
 Interface: identical to GCMMA-MMA-Python (same positional arguments, same
 returned tuple). ``gcmmasub`` accepts an optional ``move`` limit, absent in the
 original. The auxiliary GCMMA functions ``asymp``, ``concheck`` and
-``raaupdate`` do not solve subproblems and are used unchanged from mmapy.
+``raaupdate`` do not solve subproblems and are used unchanged from mmapy. A
+RuntimeWarning is issued when the dual Newton iteration stops before reaching
+``tol_dual`` (``max_newton`` reached or no further progress).
 
 References
     K. Svanberg, The method of moving asymptotes - a new method for structural
@@ -55,6 +62,7 @@ by the Free Software Foundation, either version 3 of the License, or (at your
 option) any later version. It is distributed WITHOUT ANY WARRANTY; see the
 LICENSE file or <https://www.gnu.org/licenses/>.
 """
+import warnings
 import numpy as np
 
 
@@ -150,23 +158,28 @@ def subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P, Q, a0, a, b, c, d, tol=1
     "maximiza a função dual W(lam) na caixa 0 <= lam <= c (Newton projetado com busca linear)"
     low, upp, alfa, beta = low.ravel(), upp.ravel(), alfa.ravel(), beta.ravel()
     p0, q0, a, b, c, d = p0.ravel(), q0.ravel(), a.ravel(), b.ravel(), c.ravel(), d.ravel()
+    if np.any(a != 0):
+        raise NotImplementedError("mma_dual: subproblems with a != 0 (minimax form) are not supported; the dual "
+                                  "domain is then the box intersected with a^T lam <= a0. Use mmapy for these.")
+    if a0 < 0:
+        raise ValueError("mma_dual: a0 must be >= 0 (the subproblem is unbounded in z otherwise)")
     lam_max = np.where(d > 0, np.inf, c)                                    # d_i = 0: y_i = 0 exige lam_i <= c_i
+    z = 0.0                                                                 # a = 0, a0 >= 0: z = 0 minimiza a0 z
 
     def primal(lam):
-        "x(lam), y(lam), z(lam) e os termos auxiliares"
+        "x(lam), y(lam) e os termos auxiliares"
         p, q = p0 + lam @ P, q0 + lam @ Q
         sp, sq = np.sqrt(p), np.sqrt(q)
         x = np.clip((sp*low + sq*upp)/(sp + sq), alfa, beta)
         y = np.where(d > 0, np.maximum(0.0, (lam - c)/np.where(d > 0, d, 1.0)), 0.0)
-        z = 0.0 if a0 - a @ lam >= 0 else np.inf                             # a0 > 0 e a = 0 no uso corrente: z = 0
         return x, y, z, p, q
 
     def dual(lam):
-        "W(lam) e o gradiente g_i(x(lam)) - y_i - a_i z - b_i"
+        "W(lam) e o gradiente g_i(x(lam)) - y_i - b_i"
         x, y, z, p, q = primal(lam)
         ux, xl = upp - x, x - low
-        W = np.sum(p/ux + q/xl) - lam @ b + a0*z - lam @ (a*z) + np.sum(c*y + 0.5*d*y*y) - lam @ y
-        grad = P @ (1/ux) + Q @ (1/xl) - a*z - y - b
+        W = np.sum(p/ux + q/xl) - lam @ b + np.sum(c*y + 0.5*d*y*y) - lam @ y
+        grad = P @ (1/ux) + Q @ (1/xl) - y - b
         return W, grad, x, y, z, p, q
 
     def hessiana(lam, x, p, q):
@@ -181,11 +194,16 @@ def subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P, Q, a0, a, b, c, d, tol=1
 
     lam = np.zeros(m)
     W, grad, x, y, z, p, q = dual(lam)
-    for it in range(max_newton):
+    escala = max(1.0, np.max(np.abs(b)))
+    convergiu = False
+    for it in range(max_newton + 1):
         # conjunto ativo: lam no limite e gradiente apontando para fora
         ativo = ((lam <= 0) & (grad < 0)) | ((lam >= lam_max) & (grad > 0))
         gp = np.where(ativo, 0.0, grad)
-        if np.max(np.abs(gp)) <= tol*max(1.0, np.max(np.abs(b))):
+        if np.max(np.abs(gp)) <= tol*escala:
+            convergiu = True
+            break
+        if it == max_newton:
             break
         H = hessiana(lam, x, p, q)
         livre = ~ativo
@@ -199,13 +217,19 @@ def subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P, Q, a0, a, b, c, d, tol=1
         if not np.all(np.isfinite(dlam)) or dlam @ gp <= 0:                 # não é direção de subida: gradiente projetado
             dlam = gp
         t = 1.0
-        for _ in range(60):                                                 # busca linear com projeção na caixa
+        for _ in range(60):                                                 # busca linear (Armijo) com projeção na caixa
             lam_n = np.clip(lam + t*dlam, 0.0, lam_max)
             W_n, grad_n, x_n, y_n, z_n, p_n, q_n = dual(lam_n)
-            if W_n >= W - 1e-14*abs(W) or np.all(lam_n == lam):
-                break
+            if W_n - W >= 1e-4*(grad @ (lam_n - lam)) - 1e-14*abs(W) or np.all(lam_n == lam):
+                break                                                       # 1e-14|W|: tolerância de arredondamento de W
             t *= 0.5
         if np.all(lam_n == lam):
             break
         lam, W, grad, x, y, z, p, q = lam_n, W_n, grad_n, x_n, y_n, z_n, p_n, q_n
+    if not convergiu:
+        ativo = ((lam <= 0) & (grad < 0)) | ((lam >= lam_max) & (grad > 0))
+        residuo = np.max(np.abs(np.where(ativo, 0.0, grad)))/escala
+        warnings.warn(f"mma_dual: dual Newton stopped after {it} steps with projected gradient "
+                      f"{residuo:.1e} (tol_dual = {tol:.1e}); the subproblem solution may be "
+                      "less accurate than requested", RuntimeWarning, stacklevel=3)
     return x.reshape(-1, 1), y.reshape(-1, 1), np.array([[z]]), lam.reshape(-1, 1)

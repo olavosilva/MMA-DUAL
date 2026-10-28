@@ -76,8 +76,7 @@ clipped to $[\alpha_j, \beta_j]$ (the function is convex in $x_j$, so clipping g
 constrained minimizer). For the artificial variables,
 
 $$
-y_i(\lambda) = \max\!\left(0, \frac{\lambda_i - c_i}{d_i}\right)\ \ (d_i > 0),\qquad
-z(\lambda) = 0\ \ \text{if } a_0 > \textstyle\sum_i a_i \lambda_i ,
+y_i(\lambda) = \max\left(0, \frac{\lambda_i - c_i}{d_i}\right)\ \ (d_i > 0),\qquad z(\lambda) = 0\ \ \text{if } a_0 > \textstyle\sum_i a_i \lambda_i ,
 $$
 
 and when $d_i = 0$ (the usual choice) the term $(c_i - \lambda_i) y_i$ is bounded below only if
@@ -85,8 +84,7 @@ $\lambda_i \le c_i$, which becomes an upper bound on the multiplier, with $y_i =
 function
 
 $$
-W(\lambda) = \sum_j\left(\frac{p_j}{U_j - x_j} + \frac{q_j}{x_j - L_j}\right) - \lambda^{\mathsf T} b
-+ a_0 z - \lambda^{\mathsf T}(a z) + \sum_i\left(c_i y_i + \tfrac12 d_i y_i^2\right) - \lambda^{\mathsf T} y,
+W(\lambda) = \sum_j\left(\frac{p_j}{U_j - x_j} + \frac{q_j}{x_j - L_j}\right) - \lambda^{\mathsf{T}} b + a_0 z - \lambda^{\mathsf{T}}(a z) + \sum_i\left(c_i y_i + \tfrac{1}{2} d_i y_i^2\right) - \lambda^{\mathsf{T}} y,
 $$
 
 evaluated at $x(\lambda), y(\lambda), z(\lambda)$, is concave, and by strong duality (the
@@ -107,15 +105,13 @@ Its Hessian is obtained by differentiating $x_j(\lambda)$. For the variables str
 $[\alpha_j, \beta_j]$, the stationarity condition $\partial_{x_j}\mathcal{L} = 0$ gives
 
 $$
-\frac{\partial x_j}{\partial \lambda_i} = -\frac{G_{ij}}{D_j},\qquad
-G_{ij} = \frac{\partial g_i}{\partial x_j} = \frac{P_{ij}}{(U_j - x_j)^2} - \frac{Q_{ij}}{(x_j - L_j)^2},\qquad
-D_j = \frac{2 p_j}{(U_j - x_j)^3} + \frac{2 q_j}{(x_j - L_j)^3} > 0,
+\frac{\partial x_j}{\partial \lambda_i} = -\frac{G_{ij}}{D_j},\qquad G_{ij} = \frac{\partial g_i}{\partial x_j} = \frac{P_{ij}}{(U_j - x_j)^2} - \frac{Q_{ij}}{(x_j - L_j)^2},\qquad D_j = \frac{2 p_j}{(U_j - x_j)^3} + \frac{2 q_j}{(x_j - L_j)^3} > 0,
 $$
 
 while the variables at a bound do not move. Hence
 
 $$
-\nabla^2 W = -\sum_{j\ \text{free}} \frac{G_{\cdot j}\, G_{\cdot j}^{\mathsf T}}{D_j} - \mathrm{diag}\!\left(\frac{[\lambda_i > c_i]}{d_i}\right),
+\nabla^2 W = -\sum_{j\ \text{free}} \frac{G_{\cdot j} G_{\cdot j}^{\mathsf{T}}}{D_j} - \mathrm{diag}\left(\frac{[\lambda_i > c_i]}{d_i}\right),
 $$
 
 which is negative semidefinite, as expected for a concave function. Both the gradient and the

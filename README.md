@@ -46,7 +46,8 @@ $$
 \text{s.t.}\quad g_i(x) - a_i z - y_i \le b_i,\qquad g_i(x) = \sum_{j=1}^{n}\left(\frac{P_{ij}}{U_j - x_j} + \frac{Q_{ij}}{x_j - L_j}\right),\qquad \alpha_j \le x_j \le \beta_j .
 $$
 
-$L_j < \alpha_j$ and $U_j > \beta_j$ are the moving asymptotes, and $p_{0j}, q_{0j}, P_{ij}, Q_{ij}, b_i \ge 0$
+$L_j < \alpha_j$ and $U_j > \beta_j$ are the moving asymptotes, and $p_{0j}, q_{0j}, P_{ij}, Q_{ij} \ge 0$
+and $b_i$ (of either sign: $b_i < 0$ when the constraint is strongly violated at the current design)
 are built from the function values and gradients at the current design. This construction is
 copied verbatim from `mmapy`, so the subproblem solved here is exactly the one solved there.
 
@@ -71,21 +72,29 @@ clipped to $[\alpha_j, \beta_j]$ (the function is convex in $x_j$, so clipping g
 constrained minimizer). For the artificial variables,
 
 $$
-y_i(\lambda) = \max\left(0, \frac{\lambda_i - c_i}{d_i}\right)\ \ (d_i > 0),\qquad z(\lambda) = 0\ \ \text{if } a_0 > \textstyle\sum_i a_i \lambda_i ,
+y_i(\lambda) = \max\left(0, \frac{\lambda_i - c_i}{d_i}\right)\ \ (d_i > 0),\qquad z(\lambda) = 0\ \ (a = 0,\ a_0 > 0),
 $$
 
 and when $d_i = 0$ (the usual choice) the term $(c_i - \lambda_i) y_i$ is bounded below only if
-$\lambda_i \le c_i$, which becomes an upper bound on the multiplier, with $y_i = 0$. The dual
+$\lambda_i \le c_i$, which becomes an upper bound on the multiplier. At the solution, if
+$\lambda_i = c_i$, the constraint cannot be satisfied within the bounds and $y_i$ is recovered
+from the residual, $y_i = \max(0, g_i(x) - b_i)$, as in `mmapy`; otherwise $y_i = 0$. The dual
 function
 
 $$
-W(\lambda) = \sum_j\left(\frac{p_j}{U_j - x_j} + \frac{q_j}{x_j - L_j}\right) - \lambda^{\mathsf{T}} b + a_0 z - \lambda^{\mathsf{T}}(a z) + \sum_i\left(c_i y_i + \tfrac{1}{2} d_i y_i^2\right) - \lambda^{\mathsf{T}} y,
+W(\lambda) = \sum_j\left(\frac{p_j}{U_j - x_j} + \frac{q_j}{x_j - L_j}\right) - \lambda^{\mathsf{T}} b + \sum_i\left(c_i y_i + \tfrac{1}{2} d_i y_i^2\right) - \lambda^{\mathsf{T}} y,
 $$
 
-evaluated at $x(\lambda), y(\lambda), z(\lambda)$, is concave, and by strong duality (the
+evaluated at $x(\lambda), y(\lambda)$, is concave, and by strong duality (the
 subproblem is convex with a strictly feasible point) its maximum over the box
 $0 \le \lambda_i \le c_i$ (or $\lambda_i \ge 0$ when $d_i > 0$) gives the solution of the
 subproblem.
+
+Only $a = 0$ is supported, which is the standard choice ($a_0 = 1$, $a_i = 0$). With $a \ne 0$
+(the minimax form, $a_0 = 1$, $a_i = 1$) the dual domain is the box intersected with the
+half-space $\sum_i a_i \lambda_i \le a_0$, whose boundary is where $z > 0$ is recovered; the
+projected Newton method below does not handle this intersection, and `subsolv_dual` raises
+`NotImplementedError` for $a \ne 0$. Use `mmapy` for such problems.
 
 ### Gradient and Hessian
 
@@ -93,7 +102,7 @@ By the envelope theorem, the gradient of $W$ is the residual of the constraints 
 primal minimizer,
 
 $$
-\frac{\partial W}{\partial \lambda_i} = g_i\big(x(\lambda)\big) - a_i z - y_i - b_i .
+\frac{\partial W}{\partial \lambda_i} = g_i\big(x(\lambda)\big) - y_i - b_i .
 $$
 
 Its Hessian is obtained by differentiating $x_j(\lambda)$. For the variables strictly inside
@@ -109,23 +118,29 @@ $$
 \nabla^2 W = -\sum_{j\ \text{free}} \frac{G_{\cdot j} G_{\cdot j}^{\mathsf{T}}}{D_j} - \mathrm{diag}\left(\frac{[\lambda_i > c_i]}{d_i}\right),
 $$
 
-which is negative semidefinite, as expected for a concave function. Both the gradient and the
-Hessian cost $O(nm)$ and $O(nm^2)$ operations, respectively, and the Hessian is a dense
-$m \times m$ matrix.
+which is negative semidefinite, as expected for a concave function. The Hessian is defined
+piecewise: the set of free variables changes with $\lambda$ (a variable entering or leaving a
+bound removes or adds its rank-one term), so $W$ is $C^1$ but only piecewise $C^2$. Both the
+gradient and the Hessian cost $O(nm)$ and $O(nm^2)$ operations, respectively, and the Hessian
+is a dense $m \times m$ matrix.
 
 ### Maximization
 
 $W$ is maximized by a projected Newton method: at each step the active set is formed by the
 multipliers at a bound of the box whose gradient points outwards, the Newton direction is
 computed in the free multipliers, replaced by the projected gradient when it is not an ascent
-direction, and the step is halved until $W$ does not decrease, with projection onto the box.
-The iteration stops when the projected gradient is smaller than `tol_dual` relative to
-$\max(1, \|b\|_\infty)$. The dual function is piecewise smooth (the sets of free variables
-and of active bounds change with $\lambda$), so the Newton direction is exact within each
-piece and the line search handles the transitions; in practice a few steps suffice. Once
-$\lambda^\star$ is found, $x(\lambda^\star)$ is the solution of the subproblem, and the remaining
-multipliers returned for compatibility with `mmapy` ($\xi, \eta, \mu, \zeta, s$) are recovered
-from the KKT conditions.
+direction, and the step is halved, with projection onto the box, until the Armijo condition
+$W(\lambda^+) - W(\lambda) \ge 10^{-4}\, \nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$ holds
+(up to a rounding tolerance of $10^{-14}|W|$). The iteration stops when the projected gradient
+is smaller than `tol_dual` relative to $\max(1, \|b\|_\infty)$; since stationarity in $x$ holds
+by construction, the projected dual gradient is exactly the primal feasibility and
+complementarity residual of the subproblem, so no separate KKT check is needed. If
+`max_newton` steps are reached, or the line search cannot make progress, before this tolerance
+is met, a `RuntimeWarning` reports the residual actually reached. The dual function is piecewise
+smooth, so the Newton direction is exact within each piece and the line search handles the
+transitions; in practice a few steps suffice. Once $\lambda^\star$ is found, $x(\lambda^\star)$ is
+the solution of the subproblem, and the remaining multipliers returned for compatibility with
+`mmapy` ($\xi, \eta, \mu, \zeta, s$) are recovered from the KKT conditions.
 
 ### What is different from `mmapy`
 
@@ -136,9 +151,46 @@ per level. Each step solves a dense $(m+1) \times (m+1)$ system, but the number 
 in difficult subproblems (large multipliers, many variables at the move limits), and the
 cost of the surrounding vector operations in $n$ is paid at every step. The dual method
 reduces the problem to $m$ unknowns and reaches the solution with a few Newton steps,
-each costing one pass over the $n$ variables, which is why it is faster by one to two orders
-of magnitude when $m \ll n$. The approximation reached at the returned point is the same to
-within the stopping tolerances of the two methods (about $10^{-5}$ in the tests).
+each costing one pass over the $n$ variables. The approximation reached at the returned point
+is the same to within the stopping tolerances of the two methods (about $10^{-5}$ in the
+tests).
+
+### Benchmark
+
+Median wall time of five random MMA subproblems per $(n, m)$ (`benchmarks/bench_n_m.py`,
+one core). Gradients $\sim N(0,1)$, constraint values $\sim U(-1,1)$,
+$c = 10^3$, $d = 0$, `move = 0.2`. The gain depends on how hard the subproblem is for the
+interior-point method, more than on $n$ and $m$: on well-scaled subproblems it is a factor of
+2.5 to 18, and it grows with $n$ and shrinks with $m$ (the $O(nm^2)$ Hessian); on badly scaled
+subproblems (objective gradient $\sim 10^{-3}$, second table), where `mmapy` needs hundreds of
+Newton steps per barrier level, it is two to three orders of magnitude.
+
+| $n$ | $m$ | `mmapy` [s] | `mma_dual` [s] | ratio |
+|---:|---:|---:|---:|---:|
+| 1 000 | 1 | 0.015 | 0.0015 | 9.8 |
+| 1 000 | 4 | 0.015 | 0.0033 | 4.5 |
+| 1 000 | 16 | 0.015 | 0.0042 | 3.6 |
+| 1 000 | 64 | 0.027 | 0.011 | 2.5 |
+| 10 000 | 1 | 0.054 | 0.0056 | 9.5 |
+| 10 000 | 4 | 0.063 | 0.0082 | 7.6 |
+| 10 000 | 16 | 0.083 | 0.027 | 3.1 |
+| 10 000 | 64 | 0.20 | 0.087 | 2.3 |
+| 100 000 | 1 | 0.87 | 0.048 | 18 |
+| 100 000 | 4 | 0.96 | 0.075 | 13 |
+| 100 000 | 16 | 1.21 | 0.17 | 6.9 |
+| 100 000 | 64 | 3.43 | 0.96 | 3.6 |
+
+| $n$ | $m$ | `mmapy` [s] | `mma_dual` [s] | ratio |
+|---:|---:|---:|---:|---:|
+| 1 000 | 4 | 0.73 | 0.0017 | 420 |
+| 10 000 | 4 | 3.66 | 0.0087 | 420 |
+| 10 000 | 16 | 4.87 | 0.018 | 270 |
+| 100 000 | 4 | 34.2 | 0.074 | 460 |
+
+In an optimization run the subproblem is only part of the cost, so the gain in total time is
+smaller; in the duct-network problem that motivated this package ($m = 4$, multipliers up to
+$c$ and many variables at the move limits) the subproblem step went from 0.33 s to 0.015 s per
+iteration.
 
 ## Usage
 
@@ -159,24 +211,33 @@ The positional arguments and the returned tuples are those of `mmapy`. Differenc
   maximum number of Newton steps.
 - The multipliers `lam` returned are the dual solution; `xsi`, `eta`, `mu`, `zet`, `s` are
   recovered from the KKT conditions for compatibility and are not used by the method.
+- A `RuntimeWarning` is issued if the dual iteration stops before `tol_dual` is reached
+  (`max_newton` steps, or no further progress in the line search); the warning reports the
+  residual actually reached. Silence it with `warnings.filterwarnings` if it is acceptable.
 
-Limitations: the dual Hessian is a dense m × m matrix, so the method is meant for m up to a
-few tens of constraints. With `d = 0` (the usual choice), the multipliers are bounded by
-`c`; if the constraints cannot be satisfied within the move limits, `lam` reaches `c` and
-the returned `y` carries the violation, as in `mmapy`.
+Limitations: only `a = 0` is supported (`NotImplementedError` otherwise, see
+[Dual function](#dual-function)); the dual Hessian is a dense m × m matrix, so the method is
+meant for m up to a few tens of constraints. With `d = 0` (the usual choice), the multipliers
+are bounded by `c`; if the constraints cannot be satisfied within the move limits, `lam`
+reaches `c` and the returned `y` carries the violation, as in `mmapy`.
 
 ## Tests and example
 
 `tests/test_against_mmapy.py` compares the two solvers on random MMA and GCMMA subproblems
 (objective of the approximation plus the penalty of the artificial variables, feasibility,
-`f0app`/`fapp`); `examples/toy_problem.py` runs the five-variable test problem of
-GCMMA-MMA-Python with both subproblem solvers and prints the iteration histories.
+`f0app`/`fapp`); `tests/test_edge_cases.py` covers strongly violated constraints (multipliers
+at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$, the
+`a != 0` exception and the non-convergence warning; `examples/toy_problem.py` runs the
+five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
+iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above.
 
 ```
 pip install -e .          # numpy only
-pip install mmapy         # needed for the tests, the example and the GCMMA helpers
+pip install mmapy         # needed for the tests, the example, the benchmark and the GCMMA helpers
 python tests/test_against_mmapy.py
+python tests/test_edge_cases.py
 python examples/toy_problem.py
+python benchmarks/bench_n_m.py
 ```
 
 ## Citing
@@ -189,7 +250,7 @@ the subproblem is taken, and the papers by Svanberg that define the methods:
 @software{silva2026mmadual,
   author  = {Silva, Olavo M.},
   title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
-  version = {0.1.0},
+  version = {0.1.1},
   year    = {2026},
   doi     = {10.5281/zenodo.23741623},
   url     = {https://github.com/olavosilva/MMA-DUAL},

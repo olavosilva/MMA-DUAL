@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/1437500728.svg)](https://doi.org/10.5281/zenodo.23741623)
+
 # mma-dual
 
 MMA and GCMMA subproblems solved by the **dual method**, as drop-in replacements for

@@ -30,11 +30,6 @@ for fixed multipliers λ of the m constraints, the subproblem is minimized in cl
 each design variable, and the concave dual function W(λ) is maximized by a projected Newton
 method with analytical Hessian on the box 0 ≤ λ ≤ c. Each evaluation costs O(n m).
 
-On the duct-network optimization problems this package was written for (n ≈ 800, m = 4),
-the subproblem time per iteration dropped from 0.3 to 0.9 s to 5 to 30 ms. The two solvers
-return the same approximate objective to within about 1e-5, the difference reflecting their
-stopping tolerances (see `tests/`), and the optimization histories coincide (see `examples/`).
-
 ## Method
 
 ### The subproblem

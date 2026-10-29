@@ -168,7 +168,7 @@ reduced further. This happens with nearly redundant constraints (rows of the con
 Jacobian equal to $10^{-8}$), where $W$ is flat to $10^{-16}$ along $m - 1$ directions and a
 residual of $10^{-10}$ would need $\Delta\lambda \sim 10^{6}$; a tight L-BFGS-B run stops at the
 same point. A `RuntimeWarning` reporting the residual actually reached is issued when the
-iteration stops with a residual above $\sqrt{\text{tol\_dual}}$ ($10^{-5}$ by default, the level at
+iteration stops with a residual above the square root of `tol_dual` ($10^{-5}$ by default, the level at
 which `mmapy` itself stops), whether by `max_newton` or by the rounding criterion. In
 practice a few steps suffice: 5 to 10 on regular subproblems, 10 to 25 on the degenerate
 cases above, and up to `max_newton` on nearly redundant constraints, where the dual value

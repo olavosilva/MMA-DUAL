@@ -126,31 +126,54 @@ is a dense $m \times m$ matrix.
 
 ### Maximization
 
-$W$ is maximized by a projected Newton method: at each step the active set is formed by the
-multipliers at a bound of the box whose gradient points outwards, the Newton direction is
-computed in the free multipliers, replaced by the projected gradient when it is not an ascent
-direction, and the step is halved, with projection onto the box, until the Armijo condition
-$W(\lambda^+) - W(\lambda) \ge 10^{-4}\, \nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$ holds
-(up to a rounding allowance of $10^{-14}|W|$, proportional to $|W|$ because $W$ is a sum of $n$
-positive terms whose rounding error scales with $|W|$; the allowance is what lets the last
-Newton steps be accepted when their predicted gain is below rounding, and in tests it never
-admitted an actual decrease of $W$). The iteration stops when the projected gradient is smaller
-than `tol_dual` relative to $\max(1, \|b\|_\infty)$. Stationarity in $x$, $y$ and $z$ holds by
-construction of $x(\lambda)$, $y(\lambda)$ and $z$, so the projected dual gradient is the
-feasibility and complementarity residual of the subproblem *with* its artificial variables:
-$|g_i(x) - y_i - b_i| \le$ `tol_dual` $\max(1, \|b\|_\infty)$ for the free multipliers, with
-$g_i(x) - y_i < b_i$ allowed only at $\lambda_i = 0$. This is feasibility of the subproblem, not of
-the approximate constraints $g_i(x) \le b_i$ themselves: when $\lambda_i = c_i$ the latter are
-violated at $x$ and $y_i > 0$ carries the violation, exactly as in `mmapy`. The complementarity
-residuals $\lambda_i s_i$ and $\mu_i y_i$ are the gradient residual multiplied by $\lambda_i$ or
-$\mu_i \le c_i$, so with $c = 10^3$ they can reach $10^3$ times the gradient tolerance;
-`tests/test_edge_cases.py` checks all the KKT residuals of the subproblem, including those of
-the multipliers $\xi, \eta, \mu, \zeta, s$ recovered for compatibility with `mmapy`. If
-`max_newton` steps are reached, or the line search cannot make progress, before the tolerance
-is met, a `RuntimeWarning` reports the residual actually reached. The dual function is piecewise
-smooth, so the Newton direction is exact within each piece and the line search handles the
-transitions; in practice a few steps suffice. Once $\lambda^\star$ is found, $x(\lambda^\star)$ is
-the solution of the subproblem.
+$W$ is maximized by a projected Newton method with Levenberg-Marquardt damping. At each step
+the active set is formed by the multipliers at a bound of the box whose gradient points
+outwards. In the free multipliers, the Hessian is brought to the Jacobi scaling
+$S H S$, $S = \mathrm{diag}(|H_{ii}|^{-1/2})$, which makes the step invariant to the scale of
+each constraint, and decomposed in eigenvalues $-w_k$ ($w_k \ge 0$). The step is
+
+$$
+\Delta\lambda = S\,V\,\mathrm{diag}\!\left(\frac{1}{w_k + \mu\, w_{\max}}\right) V^{\mathsf{T}} S\, \nabla W ,
+$$
+
+which is the Newton step for $\mu \to 0$ and a scaled gradient step for $\mu \to \infty$;
+components without curvature ($H_{ii} = 0$, which happens when no $x_j$ is free) take the
+gradient, damped by the same $\mu$. The step is projected onto the box and accepted when it
+satisfies the Armijo condition $W(\lambda^+) - W(\lambda) \ge 10^{-4}\,\nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$,
+up to a rounding allowance of $10^{-14}|W|$ (proportional to $|W|$ because $W$ is a sum of $n$
+positive terms whose rounding error scales with $|W|$; in tests the allowance never admitted
+an actual decrease of $W$). Otherwise $\mu$ is multiplied by 10 and the step recomputed; after
+an accepted step $\mu$ is divided by 100, down to $10^{-12}$. The damping only touches the flat
+directions of $W$, which is what makes the method robust when the Hessian is singular or
+nearly so: redundant or nearly redundant constraints, more constraints than free variables
+($m > |\mathcal{F}|$), or constraints whose scales differ by many orders of magnitude.
+
+The iteration stops when the projected gradient of each constraint is smaller than `tol_dual`
+relative to the scale of that constraint, $s_i = \max(1, |b_i|, g_i(x(0)))$. Stationarity in
+$x$, $y$ and $z$ holds by construction of $x(\lambda)$, $y(\lambda)$ and $z$, so the projected
+dual gradient is the feasibility and complementarity residual of the subproblem *with* its
+artificial variables: $|g_i(x) - y_i - b_i| \le$ `tol_dual` $s_i$ for the free multipliers, with
+$g_i(x) - y_i < b_i$ allowed only at $\lambda_i = 0$. This is feasibility of the subproblem, not
+of the approximate constraints $g_i(x) \le b_i$ themselves: when $\lambda_i = c_i$ the latter
+are violated at $x$ and $y_i > 0$ carries the violation, exactly as in `mmapy`. The
+complementarity residuals $\lambda_i s_i$ and $\mu_i y_i$ are the gradient residual multiplied
+by $\lambda_i$ or $\mu_i \le c_i$, so with $c = 10^3$ they can reach $10^3$ times the gradient
+tolerance; `tests/test_edge_cases.py` checks all the KKT residuals of the subproblem,
+including those of the multipliers $\xi, \eta, \mu, \zeta, s$ recovered for compatibility
+with `mmapy`.
+
+The iteration also stops when two consecutive undamped Newton steps increase $W$ by less than
+$10^{-13}|W|$: the maximum is then resolved to the rounding of $W$, and the residual cannot be
+reduced further. This happens with nearly redundant constraints (rows of the constraint
+Jacobian equal to $10^{-8}$), where $W$ is flat to $10^{-16}$ along $m - 1$ directions and a
+residual of $10^{-10}$ would need $\Delta\lambda \sim 10^{6}$; a tight L-BFGS-B run stops at the
+same point. A `RuntimeWarning` reporting the residual actually reached is issued when the
+iteration stops with a residual above $\sqrt{\text{tol\_dual}}$ ($10^{-5}$ by default, the level at
+which `mmapy` itself stops), whether by `max_newton` or by the rounding criterion. In
+practice a few steps suffice: 5 to 10 on regular subproblems, 10 to 25 on the degenerate
+cases above, and up to `max_newton` on nearly redundant constraints, where the dual value
+reached is within $10^{-10}$ of the optimum from the tenth step on. Once $\lambda^\star$ is found,
+$x(\lambda^\star)$ is the solution of the subproblem.
 
 ### What is different from `mmapy`
 
@@ -167,7 +190,7 @@ tests).
 
 ### Benchmark
 
-Median wall time of five random MMA subproblems per $(n, m)$ (`tests/bench_n_m.py`,
+Median wall time of five random MMA subproblems per $(n, m)$ (`benchmarks/bench_n_m.py`,
 one core). Gradients $\sim N(0,1)$, constraint values $\sim U(-1,1)$,
 $c = 10^3$, $d = 0$, `move = 0.2`. The gain depends on how hard the subproblem is for the
 interior-point method, more than on $n$ and $m$: on well-scaled subproblems it is a factor of
@@ -178,7 +201,7 @@ also returns less accurate subproblem solutions (it stops at its iteration limit
 residuals of $10^{-4}$ to $10^{-3}$ in the second table, against $10^{-12}$ to $10^{-9}$ for the
 dual, which always reaches `tol_dual`).
 
-| $n$ | $m$ | `mmapy` [s] | `mma_dual` [s] | ratio |
+| $n$ | $m$ | `mmapy` [s] | `mmadual` [s] | ratio |
 |---:|---:|---:|---:|---:|
 | 1 000 | 1 | 0.015 | 0.0015 | 9.8 |
 | 1 000 | 4 | 0.015 | 0.0033 | 4.5 |
@@ -193,7 +216,7 @@ dual, which always reaches `tol_dual`).
 | 100 000 | 16 | 1.21 | 0.17 | 6.9 |
 | 100 000 | 64 | 3.43 | 0.96 | 3.6 |
 
-| $n$ | $m$ | `mmapy` [s] | `mma_dual` [s] | ratio |
+| $n$ | $m$ | `mmapy` [s] | `mmadual` [s] | ratio |
 |---:|---:|---:|---:|---:|
 | 1 000 | 4 | 0.73 | 0.0017 | 420 |
 | 10 000 | 4 | 3.66 | 0.0087 | 420 |
@@ -206,7 +229,7 @@ smaller than the ratios above.
 ## Usage
 
 ```python
-from mma_dual import mmasub, gcmmasub          # instead of: from mmapy import mmasub, gcmmasub
+from mmadual import mmasub, gcmmasub          # instead of: from mmapy import mmasub, gcmmasub
 from mmapy import asymp, concheck, raaupdate   # GCMMA helpers, unchanged
 
 xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp = mmasub(
@@ -238,10 +261,15 @@ reaches `c` and the returned `y` carries the violation, as in `mmapy`.
 (objective of the approximation plus the penalty of the artificial variables, feasibility,
 `f0app`/`fapp`); `tests/test_edge_cases.py` covers strongly violated constraints (multipliers
 at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$, the full KKT
-residuals of the subproblem at the returned point, the `a != 0` exception and the
-non-convergence warning; `examples/toy_problem.py` runs the
+residuals of the subproblem at the returned point, degenerate subproblems (weakly active
+constraints, constraint scales from $10^{-6}$ to $10^{6}$, identical and nearly identical
+constraints, a multiplier exactly at `c` with zero gradient, more constraints than variables,
+no free variable at the start), the `a != 0` exception and the non-convergence warning; `examples/toy_problem.py` runs the
 five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
-iteration histories; `tests/bench_n_m.py` reproduces the tables above.
+iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above.
+
+The package is a single module, `mmadual.py`, which can be installed (`pip install -e .`, numpy
+only) or simply copied next to the code that uses it.
 
 ```
 pip install -e .          # numpy only
@@ -249,7 +277,7 @@ pip install mmapy         # needed for the tests, the example, the benchmark and
 python tests/test_against_mmapy.py
 python tests/test_edge_cases.py
 python examples/toy_problem.py
-python tests/bench_n_m.py
+python benchmarks/bench_n_m.py
 ```
 
 ## Citing

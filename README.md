@@ -1,7 +1,7 @@
 # MMA-DUAL
 
 [![PyPI](https://img.shields.io/pypi/v/mma-dual.svg)](https://pypi.org/project/mma-dual/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23741623.svg)](https://doi.org/10.5281/zenodo.23741623)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23770400.svg)](https://doi.org/10.5281/zenodo.23770400)
 
 MMA and GCMMA subproblems solved by the **dual method**, as drop-in replacements for
 `mmasub` and `gcmmasub` of [GCMMA-MMA-Python](https://github.com/arjendeetman/GCMMA-MMA-Python)

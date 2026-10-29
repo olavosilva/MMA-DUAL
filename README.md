@@ -1,10 +1,27 @@
 # MMA-DUAL
 
+[![PyPI](https://img.shields.io/pypi/v/mma-dual.svg)](https://pypi.org/project/mma-dual/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23741623.svg)](https://doi.org/10.5281/zenodo.23741623)
 
 MMA and GCMMA subproblems solved by the **dual method**, as drop-in replacements for
 `mmasub` and `gcmmasub` of [GCMMA-MMA-Python](https://github.com/arjendeetman/GCMMA-MMA-Python)
 (`pip install mmapy`), for optimization problems with few constraints (m ≪ n).
+
+## Installation
+
+```
+pip install mma-dual
+```
+
+The package is a single module, `mmadual.py`, with numpy as the only dependency:
+
+```python
+from mmadual import mmasub, gcmmasub
+```
+
+To run the tests, the example and the benchmark, `mmapy` is also needed (`pip install mmapy`,
+or `pip install "mma-dual[test]"`). Alternatively, copy `mmadual.py` next to your code, or
+install from a clone of this repository with `pip install -e .`.
 
 ## Origin and license
 
@@ -268,12 +285,8 @@ no free variable at the start), the `a != 0` exception and the non-convergence w
 five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
 iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above.
 
-The package is a single module, `mmadual.py`, which can be installed (`pip install -e .`, numpy
-only) or simply copied next to the code that uses it.
-
 ```
-pip install -e .          # numpy only
-pip install mmapy         # needed for the tests, the example, the benchmark and the GCMMA helpers
+pip install -e ".[test]"  # from a clone: the module plus mmapy, needed by the tests, the example and the benchmark
 python tests/test_against_mmapy.py
 python tests/test_edge_cases.py
 python examples/toy_problem.py

@@ -1,5 +1,5 @@
 """
-Benchmark of mmapy.mmasub (primal-dual interior point) against mma_dual.mmasub (dual method)
+Benchmark of mmapy.mmasub (primal-dual interior point) against mmadual.mmasub (dual method)
 on random MMA subproblems: median wall time of `REP` subproblems per (n, m).
 
 Gradients ~ N(0, 1), constraint values ~ U(-1, 1), c = 1e3, d = 0, move = 0.2. With
@@ -15,7 +15,7 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from mma_dual import mmasub as mma_du
+from mmadual import mmasub as mma_du
 from mmapy import mmasub as mma_pd
 
 REP = 5
@@ -25,7 +25,7 @@ M_LIST = [1, 4, 16, 64]
 rng = np.random.default_rng(7)
 
 print(f"objective gradient scale {ESCALA:g}; median of {REP} subproblems")
-print(f"{'n':>7} | {'m':>3} | {'mmapy [s]':>10} | {'mma_dual [s]':>12} | {'ratio':>6}")
+print(f"{'n':>7} | {'m':>3} | {'mmapy [s]':>10} | {'mmadual [s]':>12} | {'ratio':>6}")
 for n in N_LIST:
     for m in M_LIST:
         t1s, t2s = [], []

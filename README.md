@@ -82,7 +82,7 @@ the unconstrained minimizer of $p_j/(U_j - x_j) + q_j/(x_j - L_j)$ is the point 
 terms have equal and opposite slopes,
 
 $$
-x_j(\lambda) = \frac{\sqrt{p_j}\,L_j + \sqrt{q_j}\,U_j}{\sqrt{p_j} + \sqrt{q_j}},
+x_j(\lambda) = \frac{\sqrt{p_j} L_j + \sqrt{q_j} U_j}{\sqrt{p_j} + \sqrt{q_j}},
 $$
 
 clipped to $[\alpha_j, \beta_j]$ (the function is convex in $x_j$, so clipping gives the
@@ -150,13 +150,13 @@ $S H S$, $S = \mathrm{diag}(|H_{ii}|^{-1/2})$, which makes the step invariant to
 each constraint, and decomposed in eigenvalues $-w_k$ ($w_k \ge 0$). The step is
 
 $$
-\Delta\lambda = S\,V\,\mathrm{diag}\!\left(\frac{1}{w_k + \mu\, w_{\max}}\right) V^{\mathsf{T}} S\, \nabla W ,
+\Delta\lambda = S V \mathrm{diag}\left(\frac{1}{w_k + \mu w_{\max}}\right) V^{\mathsf{T}} S \nabla W ,
 $$
 
 which is the Newton step for $\mu \to 0$ and a scaled gradient step for $\mu \to \infty$;
 components without curvature ($H_{ii} = 0$, which happens when no $x_j$ is free) take the
 gradient, damped by the same $\mu$. The step is projected onto the box and accepted when it
-satisfies the Armijo condition $W(\lambda^+) - W(\lambda) \ge 10^{-4}\,\nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$,
+satisfies the Armijo condition $W(\lambda^+) - W(\lambda) \ge 10^{-4} \nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$,
 up to a rounding allowance of $10^{-14}|W|$ (proportional to $|W|$ because $W$ is a sum of $n$
 positive terms whose rounding error scales with $|W|$; in tests the allowance never admitted
 an actual decrease of $W$). Otherwise $\mu$ is multiplied by 10 and the step recomputed; after

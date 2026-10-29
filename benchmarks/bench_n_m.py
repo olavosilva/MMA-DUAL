@@ -7,9 +7,14 @@ ESCALA = 1e-3 the objective gradient is scaled down, which makes the subproblem 
 interior-point method (hundreds of Newton steps per barrier level) and reproduces the second
 table of the README.
 
-Run:  python benchmarks/bench_n_m.py [ESCALA] [matched]      (requires mmapy)
+Run:  python benchmarks/bench_n_m.py [ESCALA] [matched] [v012]      (requires mmapy)
       python benchmarks/bench_n_m.py matched
-      python benchmarks/bench_n_m.py 1e-3 matched
+      python benchmarks/bench_n_m.py 1e-3 matched v012
+
+The time of mmadual.mmasub is split into the construction of the subproblem (mma_subproblem) and its
+solution (solve_dual plus the recovery of the multipliers). With the argument "v012" the 0.1.2 module kept
+in benchmarks/mmadual_v012_reference.py is timed as well (same subproblems), as the reference of the
+reorganized package.
 
 When the argument "matched" is present, three accuracy measures are computed in the same way for the
 solutions of both solvers (relative constraint violation, stationarity in x and relative duality gap
@@ -25,14 +30,23 @@ import sys
 import time
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, '..', 'src'))
+import mmadual
 from mmadual import mmasub as mma_du
+from mmadual.approximations import mma_subproblem
 from mmapy import mmasub as mma_pd
+
+V012 = None
+if 'v012' in sys.argv[1:]:
+    import importlib.util
+    _spec = importlib.util.spec_from_file_location('mmadual_v012', os.path.join(HERE, 'mmadual_v012_reference.py'))
+    V012 = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(V012)
 
 REP = 5
 arguments = sys.argv[1:]
 MATCHED = 'matched' in arguments
-escalas = [argument for argument in arguments if argument != 'matched']
+escalas = [argument for argument in arguments if argument not in ('matched', 'v012')]
 if len(escalas) > 1:
     raise SystemExit('Usage: bench_n_m.py [ESCALA] [matched]')
 ESCALA = float(escalas[0]) if escalas else 1.0
@@ -58,7 +72,7 @@ def configuracao():
             blas = ', '.join(f"{d['internal_api']} {d['version']} ({d['num_threads']} thread{'s' if d['num_threads'] > 1 else ''})" for d in info)
     except ImportError:
         blas += ' (pip install threadpoolctl to report the BLAS library and its threads)'
-    return f"{cpu}, {os.cpu_count()} logical cores; {platform.system()} {platform.release()}; Python {platform.python_version()}, numpy {np.__version__}, {blas}"
+    return f"{cpu}, {os.cpu_count()} logical cores; {platform.system()} {platform.release()}; Python {platform.python_version()}, numpy {np.__version__}, {blas}; mmadual {mmadual.__version__}"
 
 
 def medidas(o, args):
@@ -112,13 +126,13 @@ def medidas(o, args):
 print(configuracao())
 print(f"objective gradient scale {ESCALA:g}; median of {REP} subproblems"
       + ("; matched: dual run with the loosest tol_dual (decades from 1e-2) whose ABSOLUTE duality gap is <= that of mmapy" if MATCHED else ""))
-cab = f"{'n':>7} | {'m':>3} | {'mmapy [s]':>10} | {'mma_dual [s]':>12} | {'ratio':>6}"
+cab = f"{'n':>7} | {'m':>3} | {'mmapy [s]':>10} | {'build [s]':>9} {'solve [s]':>9} {'mmadual [s]':>11} | {'ratio':>6}" + (f" | {'v0.1.2 [s]':>10}" if V012 else "")
 if MATCHED:
     cab += f" | {'matched [s]':>11} | {'ratio':>6} | {'tol':>7} | {'viol pd':>8} {'viol du':>8} | {'stat pd':>8} {'stat du':>8} | {'gap pd':>8} {'gap du':>8} {'gap mat':>8} | {'delta':>8}"
 print(cab)
 for n in N_LIST:
     for m in M_LIST:
-        t1s, t2s, t3s, tols, med1, med2, med3, dfs = [], [], [], [], [], [], [], []
+        t1s, t2s, t3s, tols, med1, med2, med3, dfs, tbs, tvs = [], [], [], [], [], [], [], [], [], []
         for _ in range(REP):
             xval = rng.uniform(0.05, 0.95, (n, 1))
             xold1 = np.clip(xval + 0.05*rng.standard_normal((n, 1)), 0, 1)
@@ -128,6 +142,9 @@ for n in N_LIST:
                     xval - 0.3, xval + 0.3, 1.0, np.zeros((m, 1)), 1e3*np.ones((m, 1)), np.zeros((m, 1)))
             t = time.perf_counter(); o1 = mma_pd(*args, move=0.2); t1s.append(time.perf_counter() - t)
             t = time.perf_counter(); o2 = mma_du(*args, move=0.2); t2s.append(time.perf_counter() - t)
+            t = time.perf_counter(); mma_subproblem(5, xval, np.zeros(n), np.ones(n), xold1, xold2, args[9], args[10], args[11], xval - 0.3, xval + 0.3, 1.0, np.zeros(m), 1e3*np.ones(m), np.zeros(m), move=0.2); tbs.append(time.perf_counter() - t)
+            if V012 is not None:
+                t = time.perf_counter(); V012.mmasub(*args, move=0.2); tvs.append(time.perf_counter() - t)
             if MATCHED:
                 m1 = medidas(o1, args)
                 m2 = medidas(o2, args)
@@ -146,8 +163,8 @@ for n in N_LIST:
                     raise RuntimeError(f'No matched absolute gap found (n={n}, m={m}, scale={ESCALA:g}): '
                                        f'dual={m3[2]:g}, mmapy={m1[2]:g}')
                 t3s.append(dt); tols.append(tol); med3.append((m3[0], m3[1], m3[2]/D))
-        t1, t2 = np.median(t1s), np.median(t2s)
-        linha = f"{n:7d} | {m:3d} | {t1:10.4f} | {t2:12.4f} | {t1/t2:6.1f}"
+        t1, t2, tb = np.median(t1s), np.median(t2s), np.median(tbs)
+        linha = f"{n:7d} | {m:3d} | {t1:10.4f} | {tb:9.4f} {t2 - tb:9.4f} {t2:11.4f} | {t1/t2:6.1f}" + (f" | {np.median(tvs):10.4f}" if V012 else "")
         if MATCHED:
             t3 = np.median(t3s); a, bd, bm = np.median(med1, axis=0), np.median(med2, axis=0), np.median(med3, axis=0)
             linha += f" | {t3:11.4f} | {t1/t3:6.1f} | {np.median(tols):7.0e} | {a[0]:8.1e} {bd[0]:8.1e} | {a[1]:8.1e} {bd[1]:8.1e} | {a[2]:8.1e} {bd[2]:8.1e} {bm[2]:8.1e} | {np.median(dfs):8.1e}"

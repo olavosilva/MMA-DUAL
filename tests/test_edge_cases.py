@@ -1,7 +1,7 @@
 """
 Edge cases of mmadual.mmasub, checked against mmapy.mmasub on the same subproblem:
 strongly violated constraints (lam reaches c, y > 0), d > 0, objective gradients scaled from
-1e-3 to 1e3, the full KKT residuals of the subproblem, degenerate subproblems, scale invariance, the a != 0 exception and the non-convergence warning (tiny max_newton).
+1e-3 to 1e3, the full KKT residuals of the subproblem, degenerate subproblems, scale invariance, the a != 0 case and the non-convergence warning (tiny max_newton).
 
 Run:  python tests/test_edge_cases.py      or      pytest tests/
 Requires mmapy (pip install mmapy).
@@ -11,7 +11,7 @@ import sys
 import warnings
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from mmadual import mmasub as mma_du, subsolv_dual
 from mmapy import mmasub as mma_pd
 from scipy.linalg import LinAlgWarning
@@ -234,15 +234,14 @@ def test_degenerate_subproblems():
         compara(args)
 
 
-def test_a_nonzero_raises():
-    "a != 0 is not supported and must not return silently"
+def test_a_nonzero_solved():
+    "a != 0 (minimax form) is solved since 0.2.0: z >= 0, dual feasible, no worse than mmapy on the exact penalty"
     args = list(subproblema(50, 2))
     args[15] = np.ones((2, 1))
-    try:
-        mma_du(*args)
-    except NotImplementedError:
-        return
-    raise AssertionError("a != 0 did not raise NotImplementedError")
+    o2 = mma_du(*args, move=MOVE)
+    o1 = mma_pd(*args, move=MOVE)
+    assert o2[2].ravel()[0] >= 0.0 and o2[3].ravel() @ args[15].ravel() <= args[14] + 1e-12
+    assert np.all(np.isfinite(o2[0])) and np.abs(o2[2].ravel()[0] - o1[2].ravel()[0]) <= 1e-3*max(1.0, abs(o1[2].ravel()[0]))
 
 
 def test_nonconvergence_warning():
@@ -258,15 +257,14 @@ def test_nonconvergence_warning():
 def test_scale_invariance():
     """rescaling constraint i by s_i > 0, i.e. (P_i, Q_i, b_i, c_i) -> (s_i P_i, s_i Q_i, s_i b_i, c_i/s_i), leaves the
        subproblem unchanged and must give the same x and lam_i/s_i. The Jacobi-scaled Newton step is exactly
-       invariant on the curved dual components; the gradient step on flat components (H_ii = 0, no free x_j) and
-       the floor of 1 in the per-constraint tolerance are not, so the path of the iterates may differ, but on a
-       flat direction W is linear in lam_i and the maximum lies at a bound of the box, which the projection reaches
-       whatever the step size, so the primal solution is still invariant: to rounding when the path is invariant,
-       and to the solver tolerance when it is not (the multipliers are compared too, which presumes a unique dual
-       solution, as in these random instances). Three regimes: (a) curvature in every constraint (invariant to
-       rounding), (b) no free variable at the start: x(0) = beta for all j is asserted, which implies H = 0 at
-       lam = 0 and a flat first step by construction, which may lead to different iteration paths (invariant to
-       tol_dual), (c) |b_i| < 1,
+       invariant on the curved dual components and so is the step to the bound of the flat ones (H_ii = 0, no free
+       x_j; in 0.1.x the gradient step of unit length was not); the floor of 1 in the per-constraint tolerance is
+       not, so the path of the iterates may differ, but on a flat direction W is linear in lam_i and the maximum
+       lies at a bound of the box, which the step reaches, so the primal solution is still invariant: to rounding
+       when the path is invariant, and to the solver tolerance when it is not (the multipliers are compared too,
+       which presumes a unique dual solution, as in these random instances). Three regimes: (a) curvature in every
+       constraint (invariant to rounding), (b) no free variable at the start: x(0) = beta for all j is asserted,
+       which implies H = 0 at lam = 0 and a flat first step by construction (invariant to tol_dual), (c) |b_i| < 1,
        where the floor of the tolerance is active (invariant to rounding in this instance). The test checks the
        returned solutions only; it does not instrument the iterations."""
     rng = np.random.default_rng(5)

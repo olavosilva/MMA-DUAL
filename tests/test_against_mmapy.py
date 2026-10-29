@@ -15,7 +15,7 @@ import sys
 import time
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 from mmapy import mmasub as mma_pd, gcmmasub as gc_pd, asymp      # noqa: E402
 from mmadual import mmasub as mma_du, gcmmasub as gc_du          # noqa: E402
 

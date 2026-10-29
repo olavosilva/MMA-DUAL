@@ -45,7 +45,9 @@ def test_kkt_of_dual_solution(kw):
     assert chk['comp'] <= 1e3*1e-9*scale                                  # lam s and mu y: residual times c
     curvature = np.max((sub['p0'] + lam @ sub['P'])/(sub['upp'] - x)**2)
     assert chk['proj_x'] <= 1e-12*max(1.0, curvature)              # rounding of p/(U-x)^2 - q/(x-L)^2 at the closed-form minimizer
-    assert 0.0 <= chk['gap'] <= 1e3*1e-9*scale and chk['gap_rel'] <= 1e-6
+    # the gap is a difference of two sums of n terms of the size of f_pen (3e4 in the violated case): its sign is
+    # rounding when it is at the level of 1e-14 |f_pen| (it came out -3.6e-11 on the GitHub runner, +2.2e-11 here)
+    assert -1e-14*max(1.0, abs(chk['f_pen'])) <= chk['gap'] <= 1e3*1e-9*scale and chk['gap_rel'] <= 1e-6
 
 
 def test_gap_detects_suboptimality():
@@ -102,5 +104,5 @@ def test_diagnostics_on_interior_point_solution():
     chk = dg.check_solution(sub, x, y, float(z[0]), lam, xsi, eta, mu, float(zet[0]), s)
     xd, yd, zd, lamd, *_ = solved(sub)
     Gd, _ = dg.duality_gap(sub, xd, lamd)
-    assert chk['viol'] <= 1e-5 and chk['stat_x'] <= 1e-5 and chk['gap'] >= 0
+    assert chk['viol'] <= 1e-5 and chk['stat_x'] <= 1e-5 and chk['gap'] >= -1e-14*max(1.0, abs(chk['f_pen']))
     assert chk['gap'] >= Gd, "the dual solution should certify at least as tightly"

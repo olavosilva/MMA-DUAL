@@ -4,7 +4,7 @@ type: software
 title: "MMA-DUAL: MMA and GCMMA subproblems solved by the dual method"
 version: 0.1.2
 date-released: 2026-10-29
-doi: 10.5281/zenodo.23741623
+doi: 10.5281/zenodo.23770400
 url: "https://github.com/olavosilva/MMA-DUAL"
 repository-code: "https://github.com/olavosilva/MMA-DUAL"
 license: GPL-3.0-or-later

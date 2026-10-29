@@ -4,24 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mma-dual"
-version = "0.1.0"
-description = "MMA and GCMMA subproblems solved by the dual method (drop-in replacement for mmapy's mmasub/gcmmasub)"
+version = "0.1.1"
+description = "MMA and GCMMA subproblems solved by the dual method (drop-in replacement for mmapy's mmasub/gcmmasub) for problems with few constraints"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{name = "Olavo M. Silva", email = "olavo@lva.ufsc.br"}]
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.20"]
+keywords = ["method of moving asymptotes", "MMA", "GCMMA", "dual method", "topology optimization", "structural optimization"]
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
 ]
 
 [project.optional-dependencies]
-test = ["mmapy>=0.3", "scipy"]
+test = ["mmapy>=0.3", "scipy", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/arjendeetman/GCMMA-MMA-Python"
+Homepage = "https://github.com/olavosilva/MMA-DUAL"
+Repository = "https://github.com/olavosilva/MMA-DUAL"
+"Derived from" = "https://github.com/arjendeetman/GCMMA-MMA-Python"
 
 [tool.setuptools]
-packages = ["mma_dual"]
+py-modules = ["mmadual"]

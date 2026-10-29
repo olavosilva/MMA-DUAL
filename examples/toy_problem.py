@@ -3,8 +3,8 @@ Cantilever beam of Svanberg (1987), the classical MMA test problem:
     minimize  0.0624 (x1 + x2 + x3 + x4 + x5)
     s.t.      61/x1^3 + 37/x2^3 + 19/x3^3 + 7/x4^3 + 1/x5^3 <= 1,   1 <= xj <= 10
 Known optimum: x* = (6.016, 5.309, 4.494, 3.502, 2.153), f* = 1.340.
-Solved with the MMA (mmapy's mmasub and mma_dual's mmasub) and with the GCMMA (mmapy's
-helpers + mma_dual's gcmmasub). All three should converge to the same point.
+Solved with the MMA (mmapy's mmasub and mmadual's mmasub) and with the GCMMA (mmapy's
+helpers + mmadual's gcmmasub). All three should converge to the same point.
 """
 import os
 import sys
@@ -12,7 +12,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import mmapy                       # noqa: E402
-import mma_dual                    # noqa: E402
+import mmadual                    # noqa: E402
 
 
 def funcs(x):
@@ -35,17 +35,17 @@ def run(method, name, max_iter=60, tol=1e-6):
         f0, df0, f, df = funcs(x)
         if method == 'mma_mmapy':
             xnew, *_, low, upp = mmapy.mmasub(m, n, it, x, xmin, xmax, xold1, xold2, f0, df0, f, df, low, upp, a0, a, c, d)
-        elif method == 'mma_dual':
-            xnew, *_, low, upp = mma_dual.mmasub(m, n, it, x, xmin, xmax, xold1, xold2, f0, df0, f, df, low, upp, a0, a, c, d)
+        elif method == 'mmadual':
+            xnew, *_, low, upp = mmadual.mmasub(m, n, it, x, xmin, xmax, xold1, xold2, f0, df0, f, df, low, upp, a0, a, c, d)
         else:                                                           # GCMMA with the dual subproblem
             low, upp, raa0, raa = mmapy.asymp(it, n, x, xold1, xold2, xmin, xmax, low, upp, raa0, raa, raa0eps, raaeps, df0, df)
-            out = mma_dual.gcmmasub(m, n, it, epsimin, x, xmin, xmax, low, upp, raa0, raa, f0, df0, f, df, a0, a, c, d)
+            out = mmadual.gcmmasub(m, n, it, epsimin, x, xmin, xmax, low, upp, raa0, raa, f0, df0, f, df, a0, a, c, d)
             xnew, f0app, fapp = out[0], out[9], out[10]
             f0n, _, fn, _ = funcs(xnew); inner = 0
             while not mmapy.concheck(m, epsimin, f0app, f0n, fapp, fn) and inner < 15:
                 inner += 1
                 raa0, raa = mmapy.raaupdate(xnew, x, xmin, xmax, low, upp, f0n, fn, f0app, fapp, raa0, raa, raa0eps, raaeps, epsimin)
-                out = mma_dual.gcmmasub(m, n, it, epsimin, x, xmin, xmax, low, upp, raa0, raa, f0, df0, f, df, a0, a, c, d)
+                out = mmadual.gcmmasub(m, n, it, epsimin, x, xmin, xmax, low, upp, raa0, raa, f0, df0, f, df, a0, a, c, d)
                 xnew, f0app, fapp = out[0], out[9], out[10]
                 f0n, _, fn, _ = funcs(xnew)
         change = float(np.max(np.abs(xnew - x)))
@@ -60,6 +60,6 @@ def run(method, name, max_iter=60, tol=1e-6):
 if __name__ == '__main__':
     print("Svanberg's beam, optimum f* = 1.340 at x* = (6.016, 5.309, 4.494, 3.502, 2.153)")
     xa = run('mma_mmapy', 'MMA, mmapy subsolv')
-    xb = run('mma_dual', 'MMA, dual subproblem')
-    xc = run('gcmma_dual', 'GCMMA, dual subproblem')
+    xb = run('mmadual', 'MMA, dual subproblem')
+    xc = run('gcmmadual', 'GCMMA, dual subproblem')
     print(f"max |x_mmapy - x_dual| = {np.max(np.abs(xa - xb)):.2e};  max |x_mma - x_gcmma| = {np.max(np.abs(xa - xc)):.2e}")

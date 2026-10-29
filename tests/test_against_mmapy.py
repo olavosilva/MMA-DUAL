@@ -1,5 +1,5 @@
 """
-Comparison of mma_dual with mmapy on random MMA and GCMMA subproblems.
+Comparison of mmadual with mmapy on random MMA and GCMMA subproblems.
 
 Both build the SAME subproblem (asymptotes, alfa/beta, p0, q0, P, Q, b). At the point
 returned by each solver, the value of the separable approximation is evaluated, including
@@ -17,7 +17,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from mmapy import mmasub as mma_pd, gcmmasub as gc_pd, asymp      # noqa: E402
-from mma_dual import mmasub as mma_du, gcmmasub as gc_du          # noqa: E402
+from mmadual import mmasub as mma_du, gcmmasub as gc_du          # noqa: E402
 
 TOL_OBJ = 1e-6          # dual may be worse than mmapy by at most this (relative to |f|)
 TOL_VIOL = 1e-6         # feasibility of the subproblem at the dual solution

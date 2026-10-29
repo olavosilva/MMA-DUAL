@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below, together with GCMMA-MMA-Python (Deetman) and the papers by Svanberg (1987, 2002)."
 type: software
 title: "MMA-DUAL: MMA and GCMMA subproblems solved by the dual method"
-version: 0.1.1
-date-released: 2026-10-28
+version: 0.1.2
+date-released: 2026-10-29
 doi: 10.5281/zenodo.23741623
 url: "https://github.com/olavosilva/MMA-DUAL"
 repository-code: "https://github.com/olavosilva/MMA-DUAL"

@@ -1,7 +1,7 @@
 """
 Edge cases of mmadual.mmasub, checked against mmapy.mmasub on the same subproblem:
 strongly violated constraints (lam reaches c, y > 0), d > 0, objective gradients scaled from
-1e-3 to 1e3, the full KKT residuals of the subproblem, degenerate subproblems, the a != 0 exception and the non-convergence warning (tiny max_newton).
+1e-3 to 1e3, the full KKT residuals of the subproblem, degenerate subproblems, scale invariance, the a != 0 exception and the non-convergence warning (tiny max_newton).
 
 Run:  python tests/test_edge_cases.py      or      pytest tests/
 Requires mmapy (pip install mmapy).
@@ -12,8 +12,13 @@ import warnings
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from mmadual import mmasub as mma_du
+from mmadual import mmasub as mma_du, subsolv_dual
 from mmapy import mmasub as mma_pd
+from scipy.linalg import LinAlgWarning
+
+# mmapy's interior-point subsolv emits one LinAlgWarning per Newton step when its system is singular (nearly
+# redundant constraints in test_degenerate_subproblems); it is the reference solver there, so silence it
+warnings.filterwarnings('ignore', category=LinAlgWarning)
 
 RNG = np.random.default_rng(1)
 MOVE = 0.2
@@ -249,6 +254,46 @@ def test_nonconvergence_warning():
     assert any(issubclass(i.category, RuntimeWarning) for i in w), "no RuntimeWarning for max_newton = 1"
     assert np.all(np.isfinite(out[0]))
 
+
+def test_scale_invariance():
+    """rescaling constraint i by s_i > 0, i.e. (P_i, Q_i, b_i, c_i) -> (s_i P_i, s_i Q_i, s_i b_i, c_i/s_i), leaves the
+       subproblem unchanged and must give the same x and lam_i/s_i. The Jacobi-scaled Newton step is exactly
+       invariant on the curved dual components; the gradient step on flat components (H_ii = 0, no free x_j) and
+       the floor of 1 in the per-constraint tolerance are not, so the path of the iterates may differ, but on a
+       flat direction W is linear in lam_i and the maximum lies at a bound of the box, which the projection reaches
+       whatever the step size, so the primal solution is still invariant: to rounding when the path is invariant,
+       and to the solver tolerance when it is not (the multipliers are compared too, which presumes a unique dual
+       solution, as in these random instances). Three regimes: (a) curvature in every constraint (invariant to
+       rounding), (b) no free variable at the start: x(0) = beta for all j is asserted, which implies H = 0 at
+       lam = 0 and a flat first step by construction, which may lead to different iteration paths (invariant to
+       tol_dual), (c) |b_i| < 1,
+       where the floor of the tolerance is active (invariant to rounding in this instance). The test checks the
+       returned solutions only; it does not instrument the iterations."""
+    rng = np.random.default_rng(5)
+    n, m = 2000, 8
+    low, upp = -np.ones(n), 2*np.ones(n)
+    alfa, beta = -0.5*np.ones(n), 1.5*np.ones(n)
+    s = np.logspace(-4, 4, m)
+    for caso in 'abc':
+        p0, q0, P, Q = rng.random(n), rng.random(n), rng.random((m, n)), rng.random((m, n))
+        if caso == 'b':
+            p0 = 1e-8*p0                                                    # x(0) = beta: no curvature at the start
+        if caso == 'c':
+            P, Q = 1e-4*P, 1e-4*Q
+        b = P @ (1/(upp - 0.3)) + Q @ (1/(0.3 - low)) - rng.uniform(0, 1, m)*(1e-4 if caso == 'c' else 1.0)
+        c = 1e3*np.ones(m)
+        if caso == 'b':
+            x0 = np.clip((np.sqrt(p0)*low + np.sqrt(q0)*upp)/(np.sqrt(p0) + np.sqrt(q0)), alfa, beta)
+            assert np.all(x0 >= beta - 1e-15), "case (b) should start with every x_j at beta"
+        if caso == 'c':
+            assert np.abs(b).max() < 1, "case (c) should have |b| < 1"
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            x1, _, _, lam1 = subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P, Q, 1.0, np.zeros(m), b, c, np.zeros(m))
+            x2, _, _, lam2 = subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P*s[:, None], Q*s[:, None], 1.0, np.zeros(m), b*s, c/s, np.zeros(m))
+        tol = 1e-8 if caso == 'b' else 1e-12
+        assert np.abs(x1 - x2).max() <= tol, f"case ({caso}): x not scale invariant, {np.abs(x1 - x2).max():.1e}"
+        assert np.abs(lam1.ravel() - s*lam2.ravel()).max() <= tol*max(1.0, np.abs(lam1).max()), f"case ({caso}): lam not scale invariant"
 
 if __name__ == '__main__':
     for nome, f in list(globals().items()):

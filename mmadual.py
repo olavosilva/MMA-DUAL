@@ -66,7 +66,7 @@ import warnings
 import numpy as np
 
 __all__ = ['mmasub', 'gcmmasub', 'subsolv_dual']
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 
 def mmasub(m, n, iter, xval, xmin, xmax, xold1, xold2, f0val, df0dx, fval, dfdx, low, upp,

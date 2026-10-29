@@ -281,9 +281,9 @@ at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$
 residuals of the subproblem at the returned point, degenerate subproblems (weakly active
 constraints, constraint scales from $10^{-6}$ to $10^{6}$, identical and nearly identical
 constraints, a multiplier exactly at `c` with zero gradient, more constraints than variables,
-no free variable at the start), the `a != 0` exception and the non-convergence warning; `examples/toy_problem.py` runs the
+no free variable at the start), scale invariance of the solution under a rescaling of the individual constraints, the `a != 0` exception and the non-convergence warning; `examples/toy_problem.py` runs the
 five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
-iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above.
+iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above and, with the argument `matched`, also runs the equal-accuracy comparison: three accuracy measures external to both solvers (constraint violation, projected-gradient stationarity in $x$ and the duality gap $f_{\mathrm{pen}}(x) - W(\lambda)$, which bounds the suboptimality of both $x$ and $\lambda$) are computed for the two solutions, and the dual solver is re-run with the loosest tolerance whose absolute gap does not exceed that of `mmapy`.
 
 ```
 pip install -e ".[test]"  # from a clone: the module plus mmapy, needed by the tests, the example and the benchmark
@@ -291,6 +291,8 @@ python tests/test_against_mmapy.py
 python tests/test_edge_cases.py
 python examples/toy_problem.py
 python benchmarks/bench_n_m.py
+python benchmarks/bench_n_m.py matched         # equal-accuracy comparison (slow: mmapy on 1e5 variables)
+python benchmarks/bench_n_m.py 1e-3 matched
 ```
 
 ## Citing
@@ -303,7 +305,7 @@ the subproblem is taken, and the papers by Svanberg that define the methods:
 @software{silva2026mmadual,
   author  = {Silva, Olavo M.},
   title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
-  version = {0.1.1},
+  version = {0.1.2},
   year    = {2026},
   doi     = {10.5281/zenodo.23741623},
   url     = {https://github.com/olavosilva/MMA-DUAL},

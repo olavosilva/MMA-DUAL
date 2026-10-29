@@ -1,11 +1,22 @@
 # MMA-DUAL
 
 [![PyPI](https://img.shields.io/pypi/v/mma-dual.svg)](https://pypi.org/project/mma-dual/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23770400.svg)](https://doi.org/10.5281/zenodo.23770400)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23741623.svg)](https://doi.org/10.5281/zenodo.23741623)
 
-MMA and GCMMA subproblems solved by the **dual method**, as drop-in replacements for
-`mmasub` and `gcmmasub` of [GCMMA-MMA-Python](https://github.com/arjendeetman/GCMMA-MMA-Python)
-(`pip install mmapy`), for optimization problems with few constraints (m ≪ n).
+An implementation of the MMA and GCMMA subproblems (Svanberg 1987, 2002) in which the separable
+convex subproblem of each iteration is solved by the **dual method**: the design variables are
+eliminated analytically for fixed multipliers, and the concave dual function of the $m$ multipliers
+is maximized by a projected Newton method with analytic Hessian, Jacobi scaling and
+Levenberg-Marquardt damping. The package is meant for problems with many design variables and few
+constraints ($m \ll n$), such as topology optimization, where the cost of the subproblem is then
+negligible against the analysis.
+
+The public functions `mmasub`, `gcmmasub`, `asymp`, `concheck`, `raaupdate` and `kktcheck` have the
+calling signatures of [GCMMA-MMA-Python](https://github.com/arjendeetman/GCMMA-MMA-Python) (`mmapy`),
+so that an existing MMA or GCMMA loop runs unchanged after `from mmadual import ...`; `mmapy` is not
+needed to run it. The package also exposes the construction of the subproblems, the dual solver and a
+set of diagnostics (KKT residuals, duality gap) that can be applied to the solution of any subproblem
+solver.
 
 ## Installation
 
@@ -13,39 +24,71 @@ MMA and GCMMA subproblems solved by the **dual method**, as drop-in replacements
 pip install mma-dual
 ```
 
-The package is a single module, `mmadual.py`, with numpy as the only dependency:
-
 ```python
-from mmadual import mmasub, gcmmasub
+from mmadual import mmasub, gcmmasub, asymp, concheck, raaupdate, kktcheck
 ```
 
-To run the tests, the example and the benchmark, `mmapy` is also needed (`pip install mmapy`,
-or `pip install "mma-dual[test]"`). Alternatively, copy `mmadual.py` next to your code, or
-install from a clone of this repository with `pip install -e .`.
+numpy is the only dependency. The tests, examples and benchmarks compare with `mmapy`
+(`pip install "mma-dual[test]"` installs it together with scipy and pytest). To work from a clone:
+`pip install -e .`.
 
-## Origin and license
+## Usage
 
-This module is an adaptation of GCMMA-MMA-Python by Arjen Deetman, which is the Python
-translation of the MATLAB implementation of the Method of Moving Asymptotes by
-Krister Svanberg ([smoptit.se](http://www.smoptit.se/)). The construction of the
-subproblem (moving asymptotes, bounds `alfa`/`beta`, coefficients `p0`, `q0`, `P`, `Q`, `b`)
-is copied verbatim from `mmapy`, so that both codes build exactly the same subproblem.
-What changes is how the subproblem is solved. Both ancestors are distributed under the
-GNU General Public License v3, and so is this package (see `LICENSE`).
+Drop-in use in an MMA loop (the arguments and the returned tuple are those of `mmapy.mmasub`, column
+vectors; `move` and the asymptote parameters have the same defaults):
 
-## Why
+```python
+xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp = mmasub(
+    m, n, iter, xval, xmin, xmax, xold1, xold2, f0val, df0dx, fval, dfdx,
+    low, upp, a0, a, c, d, move=0.2)
+```
 
-`mmapy` solves the subproblem with a primal-dual interior-point Newton method in
-n + 2m + 3 unknowns. For problems with hundreds or thousands of design variables and a
-handful of constraints, the cost of this step can exceed the cost of the analysis of the
-original problem, and in difficult subproblems (large multipliers, many variables at the
-move limits) the interior-point iterations reach their limit of 200 Newton steps per
-accuracy level.
+Options beyond `mmapy`: `tol_dual=1e-10` and `max_newton=100` control the dual iteration;
+`return_info=True` appends to the tuple a dict with the convergence status of the dual iteration
+(`converged`, `reason`, `newton_steps`, `residual`, the duality gap of the returned point `gap_returned` with the bound `gap_allowed` that the tolerance implies and `certified`, and `z`/`halfspace_active` for $a \ne 0$);
+`gcmmasub(..., move=...)` adds an optional move limit, absent in `mmapy`.
 
-The dual method (Svanberg 1987, Section 5) exploits the separability of the subproblem:
-for fixed multipliers λ of the m constraints, the subproblem is minimized in closed form in
-each design variable, and the concave dual function W(λ) is maximized by a projected Newton
-method with analytical Hessian on the box 0 ≤ λ ≤ c. Each evaluation costs O(n m).
+A GCMMA loop with the helpers (see `examples/toy_problem.py` for the complete loop with inner iterations):
+
+```python
+low, upp, raa0, raa = asymp(k, n, x, xold1, xold2, xmin, xmax, low, upp, raa0, raa, raa0eps, raaeps, df0dx, dfdx)
+out = gcmmasub(m, n, k, epsimin, x, xmin, xmax, low, upp, raa0, raa, f0val, df0dx, fval, dfdx, a0, a, c, d)
+xnew, f0app, fapp = out[0], out[9], out[10]
+while not concheck(m, epsimin, f0app, f0new, fapp, fnew):
+    raa0, raa = raaupdate(xnew, x, xmin, xmax, low, upp, f0new, fnew, f0app, fapp, raa0, raa, raa0eps, raaeps, epsimin)
+    ...
+```
+
+Package interface, for work on the subproblem itself:
+
+```python
+from mmadual import mma_subproblem, gcmma_subproblem, solve_dual, recover_multipliers, diagnostics
+
+sub = mma_subproblem(iter, xval, xmin, xmax, xold1, xold2, df0dx, fval, dfdx, low, upp, a0, a, c, d, move=0.2)
+x, y, z, lam, info = solve_dual(sub, tol=1e-10, max_newton=100)
+xsi, eta, mu, zet, s, y = recover_multipliers(sub, x, y, z, lam)
+check = diagnostics.check_solution(sub, x, y, z, lam, xsi, eta, mu, zet, s)   # KKT residuals, f_pen, duality gap
+```
+
+`sub` is a plain dict with the coefficients `low, upp, alfa, beta, p0, q0, P, Q, b, a0, a, c, d` (and
+`r0, r` for the GCMMA), independent of how it was built; `solve_dual` and `diagnostics` take it as the
+only description of the problem, so a subproblem built by other code, or solved by another solver,
+can be checked with the same functions.
+
+## Package layout
+
+```
+src/mmadual/
+  approximations.py   moving asymptotes, bounds alfa/beta, coefficients p0, q0, P, Q, b (MMA) and r0, r (GCMMA)
+  dual_solver.py      dual function, gradient, Hessian; projected Newton with LM damping; recovery of the multipliers
+  mma.py              mmasub
+  gcmma.py            gcmmasub, asymp, concheck, raaupdate, kktcheck
+  diagnostics.py      KKT residuals, exact-penalty objective, dual value, duality gap
+tests/                pytest suite; tests/data/reference_mmapy.npz holds coefficients captured from mmapy 0.3.1
+benchmarks/           bench_n_m.py (timing and matched-accuracy comparison), mbb_subproblem_accuracy.py,
+                      mmadual_v012_reference.py (the single-module version 0.1.2, kept as reference)
+examples/             toy_problem.py (Svanberg's beam, MMA and GCMMA), mbb_topopt.py (MBB topology optimization)
+```
 
 ## Method
 
@@ -107,11 +150,22 @@ subproblem is convex with a strictly feasible point) its maximum over the box
 $0 \le \lambda_i \le c_i$ (or $\lambda_i \ge 0$ when $d_i > 0$) gives the solution of the
 subproblem.
 
-Only $a = 0$ is supported, which is the standard choice ($a_0 = 1$, $a_i = 0$). With $a \ne 0$
-(the minimax form, $a_0 = 1$, $a_i = 1$) the dual domain is the box intersected with the
-half-space $\sum_i a_i \lambda_i \le a_0$, whose boundary is where $z > 0$ is recovered; the
-projected Newton method below does not handle this intersection, and `subsolv_dual` raises
-`NotImplementedError` for $a \ne 0$. Use `mmapy` for such problems.
+With $a \ne 0$ (the minimax form of Svanberg, $a_0 = 1$, $a_i = 1$; $a_i \ge 0$ in general), the
+minimization in $z \ge 0$ gives $W(\lambda) = \phi(\lambda)$ on the half-space
+$\sum_i a_i \lambda_i \le a_0$, $\phi$ being the dual function with $z = 0$, and $-\infty$ outside
+it: the dual domain is the box intersected with that half-space, and $z$ is the multiplier of the
+half-space constraint in the dual problem ($\partial W/\partial\lambda_i = a_i z$ on the free
+components at the solution). The solver is then an active-set projected Newton method on that
+domain: the multipliers at a bound and the half-space are identified with a tolerance, $z$ is
+determined together with the box active set (it minimizes the projected gradient of
+$W - z\, a^{\mathsf T}\lambda$, a convex piecewise-quadratic function of $z$), the Newton step is
+taken in the tangent space of the active constraints up to the first bound met, stationarity is
+measured on the identified active set and by the projection onto the whole domain, and the returned
+point is certified by its duality gap before `converged` is reported. Supported since version 0.2.0
+and tested against `mmapy` on minimax subproblems and against `scipy.optimize.linprog` on affine
+dual functions (`tests/test_minimax.py`, `tests/test_minimax_independent_stress.py`). The $a = 0$
+iteration of 0.1.x is kept, with one change: a multiplier whose constraint has no free design variable
+($W$ affine in it) steps to its bound instead of taking the gradient as a step of unit length.
 
 ### Gradient and Hessian
 
@@ -192,6 +246,29 @@ cases above, and up to `max_newton` on nearly redundant constraints, where the d
 reached is within $10^{-10}$ of the optimum from the tenth step on. Once $\lambda^\star$ is found,
 $x(\lambda^\star)$ is the solution of the subproblem.
 
+
+### Stopping criteria and diagnostics
+
+The dual iteration stops when the projected gradient of each constraint, relative to its scale
+$\max(1, |b_i|, g_i(x(0)))$, is below `tol_dual`; or when two consecutive undamped Newton steps
+increase $W$ by less than $10^-13|W|$ (the maximum is then resolved to the rounding of $W$); or at
+`max_newton` steps. `solve_dual` returns which of these happened in `info['reason']`
+(`'tolerance'`, `'rounding'`, `'max_newton'`, `'no_progress'`) with the residual reached, and a
+`RuntimeWarning` is issued when the iteration stops with a residual above $\sqrt{\text{tol}}$.
+Stationarity in $x$, $y$ and $z$ holds by construction, so the projected dual gradient is the
+feasibility and complementarity residual of the subproblem with its artificial variables; when
+$\lambda_i = c_i$ the approximate constraint is violated at $x$ and $y_i$ carries the violation, as in
+`mmapy`. The complementarity residuals $\lambda_i s_i$ and $\mu_i y_i$ are the gradient residual times
+$\lambda_i$ or $\mu_i \le c_i$, so with $c = 10^3$ they are up to $10^3$ times the gradient tolerance.
+
+`diagnostics.check_solution` evaluates, from the equations of the subproblem and for the solution of
+any solver: the stationarity residuals with the returned multipliers, a projected-gradient stationarity
+measure in $x$ that does not use them, the constraint violation, the complementarity products, the
+exact-penalty objective $f_{\rm pen}(x)$ (objective with the artificial variables chosen optimally for
+$x$, an upper bound of the optimal value) and the duality gap $f_{\rm pen}(x) - W(\lambda) \ge 0$,
+which bounds the suboptimality of $x$ and of $\lambda$ at once ($W(\lambda)$ is checked to be
+evaluated at a dual-feasible $\lambda$).
+
 ### What is different from `mmapy`
 
 `mmapy` solves the KKT conditions of the subproblem in the full primal-dual space
@@ -243,57 +320,52 @@ dual, which always reaches `tol_dual`).
 In an optimization run the subproblem is only part of the cost, so the gain in total time is
 smaller than the ratios above.
 
-## Usage
 
-```python
-from mmadual import mmasub, gcmmasub          # instead of: from mmapy import mmasub, gcmmasub
-from mmapy import asymp, concheck, raaupdate   # GCMMA helpers, unchanged
+### Subproblem accuracy of the interior-point solver
 
-xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp = mmasub(
-    m, n, iter, xval, xmin, xmax, xold1, xold2, f0val, df0dx, fval, dfdx,
-    low, upp, a0, a, c, d, move=0.1, asymin=1e-3)
-```
+`benchmarks/mbb_subproblem_accuracy.py` builds one MMA subproblem of the MBB beam and solves it with
+`mmapy.subsolv` for `epsimin` $= 10^{-7}$ (the value hard-wired in `mmapy.mmasub`), $10^{-9}$ and
+$10^{-11}$, and with the dual solver. The interior-point solution stays at a distance of the order of
+`epsimin`$/\xi_j$ from a bound with multiplier $\xi_j$: on a 120 x 40 mesh at iteration 31, the median
+density returned in the elements that the dual solver puts at the lower bound is $1.2\times10^{-3}$,
+$1.2\times10^{-5}$ and $1.2\times10^{-7}$ for the three values of `epsimin`, with duality gaps of
+$4.5\times10^{-4}$, $4.5\times10^{-6}$ and $4.5\times10^{-8}$, against zero and $10^{-15}$ for the
+dual solver. This measures the accuracy of the subproblem solution; a more accurate subproblem does
+not by itself guarantee a better local optimum of the complete optimization.
 
-The positional arguments and the returned tuples are those of `mmapy`. Differences:
-
-- `gcmmasub(..., move=None)`: optional move limit |x − xval| ≤ move (xmax − xmin), as in
-  `mmasub`; `None` reproduces `mmapy`.
-- `tol_dual=1e-10` and `max_newton=100`: tolerance on the projected dual gradient and
-  maximum number of Newton steps.
-- The multipliers `lam` returned are the dual solution; `xsi`, `eta`, `mu`, `zet`, `s` are
-  recovered from the KKT conditions for compatibility and are not used by the method.
-- A `RuntimeWarning` is issued if the dual iteration stops before `tol_dual` is reached
-  (`max_newton` steps, or no further progress in the line search); the warning reports the
-  residual actually reached. Silence it with `warnings.filterwarnings` if it is acceptable.
-
-Limitations: only `a = 0` is supported (`NotImplementedError` otherwise, see
-[Dual function](#dual-function)); the dual Hessian is a dense m × m matrix, so the method is
-meant for m up to a few tens of constraints. With `d = 0` (the usual choice), the multipliers
-are bounded by `c`; if the constraints cannot be satisfied within the move limits, `lam`
-reaches `c` and the returned `y` carries the violation, as in `mmapy`.
-
-## Tests and example
-
-`tests/test_against_mmapy.py` compares the two solvers on random MMA and GCMMA subproblems
-(objective of the approximation plus the penalty of the artificial variables, feasibility,
-`f0app`/`fapp`); `tests/test_edge_cases.py` covers strongly violated constraints (multipliers
-at `c`, `y > 0`), `d > 0`, objective gradients scaled from $10^{-3}$ to $10^{3}$, the full KKT
-residuals of the subproblem at the returned point, degenerate subproblems (weakly active
-constraints, constraint scales from $10^{-6}$ to $10^{6}$, identical and nearly identical
-constraints, a multiplier exactly at `c` with zero gradient, more constraints than variables,
-no free variable at the start), scale invariance of the solution under a rescaling of the individual constraints, the `a != 0` exception and the non-convergence warning; `examples/toy_problem.py` runs the
-five-variable test problem of GCMMA-MMA-Python with both subproblem solvers and prints the
-iteration histories; `benchmarks/bench_n_m.py` reproduces the tables above and, with the argument `matched`, also runs the equal-accuracy comparison: three accuracy measures external to both solvers (constraint violation, projected-gradient stationarity in $x$ and the duality gap $f_{\mathrm{pen}}(x) - W(\lambda)$, which bounds the suboptimality of both $x$ and $\lambda$) are computed for the two solutions, and the dual solver is re-run with the loosest tolerance whose absolute gap does not exceed that of `mmapy`.
+## Tests, examples and benchmarks
 
 ```
-pip install -e ".[test]"  # from a clone: the module plus mmapy, needed by the tests, the example and the benchmark
-python tests/test_against_mmapy.py
-python tests/test_edge_cases.py
-python examples/toy_problem.py
-python benchmarks/bench_n_m.py
-python benchmarks/bench_n_m.py matched         # equal-accuracy comparison (slow: mmapy on 1e5 variables)
-python benchmarks/bench_n_m.py 1e-3 matched
+pip install -e ".[test]"
+pytest                                        # the whole suite (about 40 tests, half a minute)
+python examples/toy_problem.py                # Svanberg's beam with the MMA and the GCMMA, no mmapy needed
+python examples/mbb_topopt.py 300 100 500 3.0 0.05   # MBB beam, mmapy against mmadual, time per component
+python benchmarks/bench_n_m.py [1e-3] [matched] [v012]
+python benchmarks/mbb_subproblem_accuracy.py
 ```
+
+The tests cover: the construction of the MMA and GCMMA subproblems and the helpers against coefficients
+captured from `mmapy` 0.3.1 and stored in `tests/data/` (agreement to $10^{-13}$; `make_reference.py`
+regenerates the file); the gradient and the Hessian of the dual function against finite differences,
+including the behaviour across a change of the active set; the agreement of the reorganized solver with
+version 0.1.2; KKT residuals and duality gap of the solutions, including strongly violated constraints,
+$d > 0$, extreme scales, redundant constraints, singular Hessians and the invariance of the solution under
+a rescaling of the constraints; the $a \ne 0$ (minimax) case against `mmapy`; complete GCMMA iterations
+without `mmapy`; and, when `mmapy` is installed, the exact-penalty objective of the dual solution against
+the interior-point one on random subproblems.
+
+## Origin and license
+
+The dual method for the MMA subproblem is described by Svanberg (1987, Section 5); the approximations
+and their parameters (asymptote rules, the regularization $0.001 |\partial f/\partial x| + r_{aa0}/(x_{\max} - x_{\min})$,
+the GCMMA update of the conservativeness parameters) are those of Svanberg's published MATLAB codes
+(2007) and of the GCMMA paper (2002). Versions 0.1.x of this package were derived from
+GCMMA-MMA-Python by Arjen Deetman, the Python translation of those codes, from which the construction of
+the subproblems was taken verbatim and the solution procedure replaced by the dual solver. From version
+0.2.0 the construction is written from the published formulations and reproduces, to rounding, the
+subproblems of `mmapy`, which remains the reference of the tests and benchmarks. The dual solver is
+original to this package. The package is distributed under the GNU General Public License v3 or later,
+the license of its ancestors (see `LICENSE`).
 
 ## Citing
 
@@ -305,7 +377,7 @@ the subproblem is taken, and the papers by Svanberg that define the methods:
 @software{silva2026mmadual,
   author  = {Silva, Olavo M.},
   title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
-  version = {0.1.2},
+  version = {0.2.0},
   year    = {2026},
   doi     = {10.5281/zenodo.23741623},
   url     = {https://github.com/olavosilva/MMA-DUAL},

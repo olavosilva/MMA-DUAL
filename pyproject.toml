@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mma-dual"
-version = "0.1.2"
-description = "MMA and GCMMA subproblems solved by the dual method (drop-in replacement for mmapy's mmasub/gcmmasub) for problems with few constraints"
+version = "0.2.0"
+description = "MMA and GCMMA subproblems solved by the dual method, with a drop-in interface for mmapy (GCMMA-MMA-Python), for problems with few constraints"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{name = "Olavo M. Silva", email = "olavo@lva.ufsc.br"}]
@@ -27,5 +27,12 @@ Homepage = "https://github.com/olavosilva/MMA-DUAL"
 Repository = "https://github.com/olavosilva/MMA-DUAL"
 "Derived from" = "https://github.com/arjendeetman/GCMMA-MMA-Python"
 
-[tool.setuptools]
-py-modules = ["mmadual"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# LinAlgWarning is raised by scipy.linalg.solve inside mmapy's interior-point routine on the degenerate reference
+# runs of tests/test_against_mmapy.py and tests/test_edge_cases.py (not by mmadual); it is listed here so that
+# the summary stays readable, not hidden: run pytest -W default::scipy.linalg.LinAlgWarning to see them
+filterwarnings = ["ignore::scipy.linalg.LinAlgWarning"]

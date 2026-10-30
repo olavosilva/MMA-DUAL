@@ -1,7 +1,7 @@
 # MMA-DUAL
 
 [![PyPI](https://img.shields.io/pypi/v/mma-dual.svg)](https://pypi.org/project/mma-dual/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23741623.svg)](https://doi.org/10.5281/zenodo.23741623)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23785895.svg)](https://doi.org/10.5281/zenodo.23785895)
 
 An implementation of the MMA and GCMMA subproblems (Svanberg 1987, 2002) in which the separable
 convex subproblem of each iteration is solved by the **dual method**: the design variables are
@@ -369,7 +369,7 @@ the license of its ancestors (see `LICENSE`).
 
 ## Citing
 
-This repository is archived on Zenodo (DOI [10.5281/zenodo.23741623](https://doi.org/10.5281/zenodo.23741623)) and has a `CITATION.cff` file (use the "Cite this repository" button on GitHub).
+This repository is archived on Zenodo (DOI [10.5281/zenodo.23741623](https://doi.org/10.5281/zenodo.23785895)) and has a `CITATION.cff` file (use the "Cite this repository" button on GitHub).
 Please cite the version used, together with GCMMA-MMA-Python, from which the construction of
 the subproblem is taken, and the papers by Svanberg that define the methods:
 
@@ -379,9 +379,9 @@ the subproblem is taken, and the papers by Svanberg that define the methods:
   title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
   version = {0.2.0},
   year    = {2026},
-  doi     = {10.5281/zenodo.23741623},
+  doi     = {10.5281/zenodo.23785895},
   url     = {https://github.com/olavosilva/MMA-DUAL},
-  note    = {GPL-3.0; derived from GCMMA-MMA-Python}
+  note    = {GPL-3.0}
 }
 
 @software{deetman2025gcmmammapython,
@@ -417,4 +417,4 @@ the subproblem is taken, and the papers by Svanberg that define the methods:
 ```
 
 The DOI of GCMMA-MMA-Python above is the one of version 0.3.1; the concept DOI that always
-resolves to the latest version is 10.5281/zenodo.13197565.
+resolves to the latest version is 10.5281/zenodo.23785895.

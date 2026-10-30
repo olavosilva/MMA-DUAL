@@ -378,8 +378,7 @@ the license of its ancestors (see `LICENSE`).
 ## Citing
 
 This repository is archived on Zenodo: the concept DOI [10.5281/zenodo.23741623](https://doi.org/10.5281/zenodo.23741623) always resolves to the latest version, and each release has its own DOI (0.2.0: [10.5281/zenodo.23785895](https://doi.org/10.5281/zenodo.23785895), the one in `CITATION.cff` and in the entry below; use the "Cite this repository" button on GitHub).
-Please cite the version used, together with GCMMA-MMA-Python, from which the construction of
-the subproblem is taken, and the papers by Svanberg that define the methods:
+Please cite the version used, together with GCMMA-MMA-Python, from which earlier versions of MMA-DUAL were derived, and the papers by Svanberg that define the methods:
 
 ```bibtex
 @software{silva2026mmadual,

@@ -108,8 +108,10 @@ $$
 
 $L_j < \alpha_j$ and $U_j > \beta_j$ are the moving asymptotes, and $p_{0j}, q_{0j}, P_{ij}, Q_{ij} \ge 0$
 and $b_i$ (of either sign: $b_i < 0$ when the constraint is strongly violated at the current design)
-are built from the function values and gradients at the current design. This construction is
-copied verbatim from `mmapy`, so the subproblem solved here is exactly the one solved there.
+are built from the function values and gradients at the current design. Since version 0.2.0 this
+construction is written from Svanberg's published formulations (`approximations.py`) and reproduces, to
+rounding, the coefficients that `mmapy` builds, so the subproblem solved here is the one solved there
+(checked against stored `mmapy` coefficients in `tests/test_approximations.py`).
 
 ### Dual function
 
@@ -207,9 +209,13 @@ $$
 \Delta\lambda = S V \mathrm{diag}\left(\frac{1}{w_k + \mu w_{\max}}\right) V^{\mathsf{T}} S \nabla W ,
 $$
 
-which is the Newton step for $\mu \to 0$ and a scaled gradient step for $\mu \to \infty$;
-components without curvature ($H_{ii} = 0$, which happens when no $x_j$ is free) take the
-gradient, damped by the same $\mu$. The step is projected onto the box and accepted when it
+which is the Newton step for $\mu \to 0$ and a scaled gradient step for $\mu \to \infty$.
+A component without curvature ($H_{ii} = 0$, which happens when no $x_j$ of that constraint is
+free, so that $W$ is affine in $\lambda_i$ until a variable leaves its bound) steps to its bound
+in the direction of the gradient ($c_i - \lambda_i$ upwards, $\lambda_i$ downwards; $d_i |\partial W/\partial \lambda_i|$
+beyond $c_i$ when $d_i > 0$, where the next piece has curvature $1/d_i$), damped by $1/\max(1, \mu)$
+(`_flat_step`; versions 0.1.x took the gradient itself as the step, a length in the unit of $W$ that
+needed many steps when the gradient was small and the bound far). The step is projected onto the box and accepted when it
 satisfies the Armijo condition $W(\lambda^+) - W(\lambda) \ge 10^{-4} \nabla W(\lambda)^{\mathsf{T}}(\lambda^+ - \lambda)$,
 up to a rounding allowance of $10^{-14}|W|$ (proportional to $|W|$ because $W$ is a sum of $n$
 positive terms whose rounding error scales with $|W|$; in tests the allowance never admitted
@@ -337,7 +343,7 @@ not by itself guarantee a better local optimum of the complete optimization.
 
 ```
 pip install -e ".[test]"
-pytest                                        # the whole suite (about 40 tests, half a minute)
+pytest                                        # the whole suite (74 tests, about a minute)
 python examples/toy_problem.py                # Svanberg's beam with the MMA and the GCMMA, no mmapy needed
 python examples/mbb_topopt.py 300 100 500 3.0 0.05   # MBB beam, mmapy against mmadual, time per component
 python benchmarks/bench_n_m.py [1e-3] [matched] [v012]
@@ -350,7 +356,9 @@ regenerates the file); the gradient and the Hessian of the dual function against
 including the behaviour across a change of the active set; the agreement of the reorganized solver with
 version 0.1.2; KKT residuals and duality gap of the solutions, including strongly violated constraints,
 $d > 0$, extreme scales, redundant constraints, singular Hessians and the invariance of the solution under
-a rescaling of the constraints; the $a \ne 0$ (minimax) case against `mmapy`; complete GCMMA iterations
+a rescaling of the constraints; the $a \ne 0$ (minimax) case against `mmapy` and against `scipy.optimize.linprog`
+on affine dual functions (`test_minimax_independent_stress.py`), and the step of the components without
+curvature on affine constraints (`test_flat_components_reach_the_bound`); complete GCMMA iterations
 without `mmapy`; and, when `mmapy` is installed, the exact-penalty objective of the dual solution against
 the interior-point one on random subproblems.
 
@@ -369,7 +377,7 @@ the license of its ancestors (see `LICENSE`).
 
 ## Citing
 
-This repository is archived on Zenodo (DOI [10.5281/zenodo.23741623](https://doi.org/10.5281/zenodo.23741623)) and has a `CITATION.cff` file (use the "Cite this repository" button on GitHub).
+This repository is archived on Zenodo: the concept DOI [10.5281/zenodo.23741623](https://doi.org/10.5281/zenodo.23741623) always resolves to the latest version, and each release has its own DOI (0.2.0: [10.5281/zenodo.23785895](https://doi.org/10.5281/zenodo.23785895), the one in `CITATION.cff` and in the entry below; use the "Cite this repository" button on GitHub).
 Please cite the version used, together with GCMMA-MMA-Python, from which the construction of
 the subproblem is taken, and the papers by Svanberg that define the methods:
 
@@ -379,9 +387,9 @@ the subproblem is taken, and the papers by Svanberg that define the methods:
   title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
   version = {0.2.0},
   year    = {2026},
-  doi     = {10.5281/zenodo.23741623},
+  doi     = {10.5281/zenodo.23785895},
   url     = {https://github.com/olavosilva/MMA-DUAL},
-  note    = {GPL-3.0; derived from GCMMA-MMA-Python}
+  note    = {GPL-3.0}
 }
 
 @software{deetman2025gcmmammapython,

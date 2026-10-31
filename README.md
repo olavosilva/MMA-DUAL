@@ -21,9 +21,10 @@ The subproblems built are those of `mmapy` to rounding; only the solution of the
 - A drop-in replacement for the `mmapy` routines, with `numpy` as the only dependency.
 - The subproblem as a plain dictionary of coefficients, a dual solver that takes that dictionary as
   its only input, and the recovery of all the multipliers of `mmapy`'s return tuple.
-- A per-call report of the dual iteration (steps, stopping reason, residual) with two duality gaps:
-  that of the returned design variables and that of the complete returned primal point, the latter
-  checked against the bound implied by the tolerance.
+- A per-call report of the dual iteration (steps, stopping reason, residual) with the duality gap of
+  the complete returned primal point, checked against the bound implied by the tolerance; the
+  diagnostics add the gap of the returned design variables alone, with the auxiliary variables
+  re-optimized, so that the two can be compared.
 - Diagnostics (KKT residuals, feasibility of the relaxed and of the unrelaxed constraints,
   complementarity, exact-penalty objective, dual value, gaps) that apply to the solution of any
   subproblem solver, including `mmapy`'s, on the same coefficients.
@@ -159,8 +160,9 @@ $g_i(x) - a_i z - y_i \le b_i$, the complementarity products, the dual feasibili
   variables and the dual value (`duality_gap`);
 - `F_returned`, `gap_returned`, `gap_returned_rel`: $F(x, y, z)$ and
   $\mathcal G_{\rm ret} = F(x, y, z) - W(\lambda)$ for the auxiliary variables actually returned
-  (`subproblem_objective`, `duality_gap_returned`); $0 \le \mathcal G_x \le \mathcal G_{\rm ret}$, and
-  the difference is the excess cost of the returned $y$ and $z$.
+  (`subproblem_objective`, `duality_gap_returned`); for a primal-feasible returned point and a
+  dual-feasible $\lambda$, $0 \le \mathcal G_x \le \mathcal G_{\rm ret}$, and the difference is the excess
+  cost of the returned $y$ and $z$.
 
 `constraint_values(sub, x)` gives $g_i(x) - b_i$, so the violation of the unrelaxed constraints
 $g_i(x) \le b_i$ can be computed separately from that of the relaxed ones; the two differ whenever
@@ -187,9 +189,10 @@ The dual iteration stops for one of these reasons, reported in `info['reason']`:
 $\mu_i y_i$ are the residual times $\lambda_i$ or $\mu_i \le c_i$, so with the usual $c_i = 10^3$ and
 constraint scales $\kappa_i$ of order $10^2$ to $10^5$ a residual at the tolerance can leave a gap of
 $10^{-5}$ to $10^{-2}$ in absolute terms. The gap obtained at a given tolerance also depends on where
-the last Newton step lands: the iteration converges quadratically once the active set is identified,
-and the gap can drop by several orders of magnitude between one tolerance and the next, or stay on
-a plateau until a further step is triggered. For these reasons no tolerance value is associated here
+the last Newton step lands: once the active set is identified the iteration is a Newton method on a
+smooth piece of $W$, and in the recorded runs the gap drops by one to three orders of magnitude per
+step, so it can fall by several orders between one tolerance and the next, or stay on a plateau until
+a further step is triggered. For these reasons no tolerance value is associated here
 with a guaranteed accuracy. The recommendation is to read `gap_returned` (or `gap` from the
 diagnostics), compare it with what the application needs, and tighten `tol_dual` when necessary;
 one or two more Newton steps usually suffice.
@@ -204,7 +207,8 @@ What `converged` and `certified` mean on the two paths of the solver:
   scale.
 
 A `RuntimeWarning` is issued when the iteration stops without `converged` and the residual is above
-$\sqrt{\text{tol}}$, or when the certificate fails.
+$\sqrt{\text{tol}}$ (both paths), and, on the $a \ne 0$ path only, when the certificate fails; on the
+$a = 0$ path a failed certificate is reported in `certified` without a warning.
 
 Feasibility of the returned point: the design variables always satisfy $\alpha_j \le x_j \le \beta_j$;
 the relaxed constraints hold to the residual above when $d_i = 0$, where
@@ -268,7 +272,7 @@ the multiplier recovery that `mmasub` performs).
 
 | objective scale | $n$ | $m$ | `mmapy` complete call [s] | MMA-DUAL complete call [s] | ratio, complete call | ratio, frozen | ratio, matched gap | `mmapy` reference |
 |---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | 1 000 | 4 | 0.015 | 0.0026 | 5.6 | 5.9 | 5.9 | converged |
+| 1 | 1 000 | 4 | 0.015 | 0.0026 | 5.6 | 5.8 | 5.9 | converged |
 | 1 | 1 000 | 16 | 0.014 | 0.0037 | 3.6 | 3.9 | 3.8 | converged |
 | 1 | 10 000 | 4 | 0.049 | 0.0088 | 5.5 | 5.5 | 6.0 | converged |
 | 1 | 10 000 | 16 | 0.087 | 0.028 | 3.2 | 4.0 | 3.1 | converged |
@@ -398,7 +402,7 @@ that define the methods:
   title   = {{MMA-DUAL}: {MMA} and {GCMMA} subproblems solved by the dual method},
   version = {0.2.1},
   year    = {2026},
-  doi     = {10.5281/zenodo.23741623},
+  doi     = {10.5281/zenodo.23842751},
   url     = {https://github.com/olavosilva/MMA-DUAL},
   note    = {GPL-3.0}
 }

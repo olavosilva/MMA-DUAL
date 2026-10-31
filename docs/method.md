@@ -86,14 +86,17 @@ orthant.
 
 ## 3. Gradient and Hessian
 
-By the envelope theorem, the gradient of $W$ is the residual of the relaxed constraints at the primal
-minimizer,
+By the envelope theorem, the gradient of the finite part $\phi$ of the dual function is the residual of
+the constraints at the primal minimizer with $z = 0$,
 
 $$
-\frac{\partial W}{\partial \lambda_i} = g_i\big(x(\lambda)\big) - a_i z - y_i - b_i ,
+\frac{\partial \phi}{\partial \lambda_i} = g_i\big(x(\lambda)\big) - y_i - b_i ,
 $$
 
-continuous in $\lambda$ because $x(\lambda)$ and $y(\lambda)$ are. The Hessian is obtained by
+continuous in $\lambda$ because $x(\lambda)$ and $y(\lambda)$ are. For $a = 0$ this is the gradient of $W$.
+For $a \ne 0$ the optimality conditions on the half-space involve the corrected gradient
+$\nabla\phi - z\, a$, $z$ being the multiplier of the half-space; the code keeps the two separate
+(`dual_function` returns $\nabla\phi$, the polytope path subtracts $z\, a$). The Hessian is obtained by
 differentiating $x_j(\lambda)$. For the variables strictly inside $(\alpha_j, \beta_j)$, the
 stationarity condition in $x_j$ gives
 
@@ -110,8 +113,9 @@ $$
 negative semidefinite. It is defined piecewise: the set of free variables changes with $\lambda$ (a
 variable entering or leaving a bound removes or adds its rank-one term, and for $d_i > 0$ the diagonal
 term appears at $\lambda_i = c_i$), so $W$ is $C^1$ but only piecewise $C^2$. The Hessian is dense,
-$m \times m$, and can be rank deficient: its rank is at most the number of free design variables and
-drops with identical or nearly identical constraints. The gradient costs $O(nm)$ operations and the
+$m \times m$, and can be rank deficient: with $d_i = 0$ its rank is at most the number of free design
+variables, and it drops with identical or nearly identical constraints; for $d_i > 0$ and
+$\lambda_i > c_i$ the diagonal term $-1/d_i$ adds curvature in that component. The gradient costs $O(nm)$ operations and the
 Hessian $O(nm^2)$; its symmetric eigendecomposition costs $O(m^3)$. The positivity of $p_j$, $q_j$
 and $D_j$ follows from $\rho_i > 0$; it guarantees a unique design minimizer, not a nonsingular
 Hessian.
@@ -180,7 +184,8 @@ tolerance.
 
 Stationarity in $x$, $y$ and $z$ holds by construction of $x(\lambda)$, $y(\lambda)$ and $z$, so the
 projected dual gradient is the feasibility and complementarity residual of the subproblem with its
-auxiliary variables: $|g_i(x) - a_i z - y_i - b_i| \le$ `tol_dual` $\kappa_i$ for the free multipliers,
+auxiliary variables: $|g_i(x) - a_i z - y_i - b_i| \le$ `tol_dual` $\kappa_i$ for the free multipliers (with
+$z = 0$ when $a = 0$),
 with $g_i(x) - a_i z - y_i < b_i$ allowed only at $\lambda_i = 0$. The complementarity residuals
 $\lambda_i s_i$ and $\mu_i y_i$ are the gradient residual multiplied by $\lambda_i$ or
 $\mu_i \le c_i$, so with $c_i = 10^3$ they can reach $10^3 \kappa_i$ times the tolerance. This is why
@@ -191,7 +196,8 @@ auxiliary variables chosen optimally for the returned $x$ (an upper bound of the
 gap $\mathcal G_x = F_{\rm pen}(x) - W(\lambda) \ge 0$ (`gap` in the diagnostics) bounds the
 suboptimality of $x$ and of $\lambda$ at once and does not depend on the returned auxiliary variables.
 The gap of the returned point, $\mathcal G_{\rm ret} = F(x, y, z) - W(\lambda)$ (`gap_returned`),
-uses the $y$ and $z$ actually returned; $\mathcal G_x \le \mathcal G_{\rm ret}$, and the difference is
+uses the $y$ and $z$ actually returned; for a primal-feasible returned point and a dual-feasible
+$\lambda$, $0 \le \mathcal G_x \le \mathcal G_{\rm ret}$, and the difference is
 the excess cost of those variables. A solution with the correct design variables and the correct dual
 value but a wrong $z$ has $\mathcal G_x$ at rounding level and $\mathcal G_{\rm ret}$ large
 (0.49 in the vertex case of the verification), which is why convergence on the $a \ne 0$ path

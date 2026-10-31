@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 (2026-10-31)
+
+Documentation release: `src/mmadual/` is identical to 0.2.0 (tag `v0.2.0`, commit `42b434c`); the version number changes so that the PyPI page carries the new README. The results recorded for 0.2.0 apply unchanged.
+
+- README reorganized for use as a scientific library: purpose, minimal runnable example (Svanberg's beam), interfaces, the `info` dictionary and the diagnostics with their actual field names, stopping and accuracy, limitations, evidence, references.
+- Antecedents stated: the dual reduction (Svanberg 1987), the dual interior-point Newton solver with analytical Hessian and diagonal regularization of Aage and Lazarov (2013), and the difference of formulation (linear $z$, $d_i = 0$ allowed, half-space and upper bounds in the dual domain) that the active-set path of this package addresses.
+- Corrected statements: Jacobi scaling reduces scale differences, exact invariance of the complete iteration is not claimed; the Levenberg–Marquardt damping modifies the whole regularized block, with a relatively larger effect on the directions of small curvature; `tol_dual` controls a scaled residual and no tolerance value is associated with a guaranteed gap; the reason `'rounding'` is a stagnation test on $W$ and does not by itself show that machine precision was reached; $\lambda_i = c_i$ does not imply a violated constraint (the recovered $y_i$ can be zero); `mmapy.subsolv` has $3n + 4m + 2$ unknowns and, for $m < n$, condenses its Newton system to $(m+1) \times (m+1)$ at $O(nm^2)$, the same leading orders as the dual Hessian; a dual Newton step costs one or more evaluations of the dual function plus the Hessian, not one pass over the variables; exact bound attainment belongs to the analytical minimizer and is available to a dual interior-point solver too.
+- Benchmarks: the 0.1.x tables (shared virtual machine, `bench_n_m.py`) replaced by the verified campaign of the manuscript (workstation, one thread, `mmapy` 0.3.1, MMA-DUAL 0.2.0 at `42b434c`), with the complete call, the frozen subproblem and the matched-gap estimate distinguished and the converged references separated from those that reached the iteration limit; the topology optimization of the manuscript ($900 \times 300$ MBB beam) summarized with the $\varepsilon/\xi_j$ offsets. Details in `docs/benchmarks-0.2.0.md`.
+- Derivations moved from the README to `docs/method.md`, with the general decomposition of the returned-point gap and the conditions under which it reduces to a sum of complementarity products.
+
 ## 0.2.0 (2026-10-29)
 
 Reorganization of the single module `mmadual.py` (0.1.2) into the package `src/mmadual/`, with the

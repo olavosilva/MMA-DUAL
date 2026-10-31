@@ -25,7 +25,7 @@ from . import diagnostics
 
 __all__ = ['mmasub', 'gcmmasub', 'asymp', 'concheck', 'raaupdate', 'kktcheck',
            'mma_subproblem', 'gcmma_subproblem', 'solve_dual', 'recover_multipliers', 'subsolv_dual', 'diagnostics']
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 
 def subsolv_dual(m, n, low, upp, alfa, beta, p0, q0, P, Q, a0, a, b, c, d, tol=1e-10, max_newton=100):

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mma-dual"
-version = "0.2.0"
+version = "0.2.1"
 description = "MMA and GCMMA subproblems solved by the dual method, with a drop-in interface for mmapy (GCMMA-MMA-Python), for problems with few constraints"
 readme = "README.md"
 license = {file = "LICENSE"}
